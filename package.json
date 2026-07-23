@@ -1,0 +1,40 @@
+{
+  "name": "ticket-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "IT destek ticket sistemi — web paneli + masaüstü müşteri uygulaması",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build:shared": "npm run -w @ticket/shared build",
+    "dev:api": "npm run -w @ticket/api dev",
+    "dev:web": "npm run -w @ticket/web dev",
+    "dev:desktop": "npm run -w @ticket/desktop dev",
+    "infra:up": "docker compose up -d postgres minio mailhog",
+    "infra:down": "docker compose down",
+    "db:migrate": "npm run -w @ticket/api db:migrate",
+    "db:seed": "npm run -w @ticket/api db:seed",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^6.4.3"
+  },
+  "//": "vite kökte sabitleniyor: vitest'in geniş peer aralığı yüzünden npm 5.x'i hoist edip web'e 6.x'i iç içe kuruyor, iki kopya tip uyuşmazlığı üretiyordu.",
+  "allowScripts": {
+    "prisma@6.19.3": true,
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "esbuild@0.28.1": true,
+    "esbuild@0.25.12": true,
+    "electron@33.4.11": true,
+    "esbuild@0.21.5": true
+  }
+}

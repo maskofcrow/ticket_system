@@ -1,0 +1,74 @@
+appId: com.firma.itdestek
+productName: IT Destek
+copyright: © IT Destek Ekibi
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+
+# Bağımlılıklar out/ içine bundle edilmediği için node_modules'tan alınır.
+asar: true
+
+# ── macOS ────────────────────────────────────────────────────────────────────
+mac:
+  category: public.app-category.utilities
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  # Ekran görüntüsü alabilmek için gereken izin açıklaması; macOS bu metni
+  # kullanıcıya izin isterken gösterir.
+  extendInfo:
+    NSScreenCaptureUsageDescription: >-
+      IT Destek uygulaması, destek talebinize eklemek üzere yalnızca sizin
+      onayınızla ekran görüntüsü alır.
+  # Sertifika yoksa imzasız çıkar; CSC_LINK tanımlıysa electron-builder
+  # otomatik imzalar. Notarization için APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/
+  # APPLE_TEAM_ID ortam değişkenleri yeterli.
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+
+dmg:
+  # Birim adına mimari eklenmeli: iki dmg aynı adla bağlandığında ikincisinin
+  # `hdiutil detach`'i "resource busy" ile düşüyor ve build yarıda kalıyor.
+  title: IT Destek ${version} ${arch}
+  artifactName: it-destek-${version}-${arch}.${ext}
+  contents:
+    - x: 140
+      y: 200
+      type: file
+    - x: 400
+      y: 200
+      type: link
+      path: /Applications
+
+# ── Windows ──────────────────────────────────────────────────────────────────
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  # CSC_LINK + CSC_KEY_PASSWORD tanımlıysa imzalanır, yoksa imzasız üretilir.
+
+nsis:
+  artifactName: it-destek-kurulum-${version}.${ext}
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: IT Destek
+  # Kurulum sonrası uygulamayı başlat — kullanıcı anahtarı hemen girsin.
+  runAfterFinish: true
+
+# ── Otomatik güncelleme ──────────────────────────────────────────────────────
+# Kendi sunucumuzdan servis ediliyor (Caddy /updates dizini). UPDATE_FEED_URL
+# ortam değişkeni ile build sırasında değiştirilebilir.
+publish:
+  provider: generic
+  url: ${env.UPDATE_FEED_URL}
+  channel: latest

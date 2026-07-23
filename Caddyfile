@@ -1,0 +1,42 @@
+{$DOMAIN} {
+	encode gzip zstd
+
+	# ── API ───────────────────────────────────────────────────────────────────
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy api:3000
+	}
+
+	# ── Canlı bağlantı (Socket.IO) ────────────────────────────────────────────
+	# WebSocket yükseltmesi Caddy'de otomatik; ayrı yapılandırma gerekmiyor.
+	handle /realtime* {
+		reverse_proxy api:3000
+	}
+
+	# ── Dosya ekleri ──────────────────────────────────────────────────────────
+	# İmzalı adresler tarayıcıya gittiği için MinIO dışarıdan erişilebilir olmalı.
+	# Bucket public değil; erişim yalnızca kısa ömürlü imzalı adreslerle mümkün.
+	handle /s3/* {
+		uri strip_prefix /s3
+		reverse_proxy minio:9000
+	}
+
+	# ── Masaüstü uygulama güncellemeleri ──────────────────────────────────────
+	# electron-updater buradaki latest.yml / latest-mac.yml dosyalarını okur.
+	handle /updates/* {
+		root * /srv
+		file_server browse
+	}
+
+	# ── Web paneli ────────────────────────────────────────────────────────────
+	handle {
+		reverse_proxy web:80
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}

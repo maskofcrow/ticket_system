@@ -1,0 +1,16 @@
+node_modules/
+dist/
+out/
+build/
+release/
+.env
+.env.local
+*.log
+.DS_Store
+coverage/
+.turbo/
+*.tsbuildinfo
+# Masaüstü güncelleme dosyaları sunucuya elle kopyalanır, repoda durmaz.
+updates/
+apps/desktop/dist-electron/
+apps/api/prisma/generated/

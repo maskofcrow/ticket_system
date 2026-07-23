@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  AGENT
+  ADMIN
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+/// Müşteri firması. Her firmanın bir lisans anahtarı vardır; müşteri
+/// kullanıcıları bu anahtarla kendilerini kaydeder.
+model Organization {
+  id String @id @default(cuid())
+
+  name         String
+  contactEmail String?
+  notes        String?
+
+  /// argon2id hash — anahtarın doğrulanması için.
+  licenseKeyHash String
+  /// HMAC-SHA256(anahtar, LICENSE_PEPPER) — indeksli arama için deterministik hash.
+  /// Bu alan olmasaydı doğrulama tüm firmaları taramak zorunda kalırdı.
+  licenseLookup  String  @unique
+  /// Anahtarın son 4 hanesi, panelde tanıma amaçlı gösterilir.
+  licenseSuffix  String
+
+  seatLimit Int     @default(10)
+  isActive  Boolean @default(true)
+
+  users   User[]
+  tickets Ticket[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+model User {
+  id String @id @default(cuid())
+
+  email        String @unique
+  passwordHash String
+  name         String
+  role         Role
+
+  /// AGENT ve ADMIN için null — onlar bir müşteri firmasına bağlı değil.
+  orgId        String?
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+
+  createdTickets  Ticket[]       @relation("TicketCreatedBy")
+  assignedTickets Ticket[]       @relation("TicketAssignedTo")
+  comments        Comment[]
+  attachments     Attachment[]
+  refreshTokens   RefreshToken[]
+  auditLogs       AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId])
+  @@index([role])
+}
+
+model RefreshToken {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Ham token asla saklanmaz — SHA-256 özeti tutulur.
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Category {
+  id    String @id @default(cuid())
+  name  String @unique
+  color String @default("#64748b")
+
+  tickets Ticket[]
+
+  createdAt DateTime @default(now())
+}
+
+model Ticket {
+  id String @id @default(cuid())
+
+  /// İnsan-okur referans (#1042). URL'lerde id, arayüzde number kullanılır.
+  number Int @unique @default(autoincrement())
+
+  orgId        String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User   @relation("TicketCreatedBy", fields: [createdById], references: [id])
+
+  assignedToId String?
+  assignedTo   User?   @relation("TicketAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  title  String
+  body   String
+  status TicketStatus @default(OPEN)
+
+  priority Priority @default(NORMAL)
+
+  comments    Comment[]
+  attachments Attachment[]
+  deviceInfo  DeviceInfo?
+
+  /// Son yorum/durum değişikliği zamanı — listeyi bu alana göre sıralıyoruz.
+  /// updatedAt'e güvenemeyiz çünkü ilgisiz alan güncellemeleri de onu değiştirir.
+  lastActivityAt DateTime  @default(now())
+  resolvedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, status])
+  @@index([assignedToId, status])
+  @@index([status, priority])
+  @@index([lastActivityAt])
+}
+
+model Comment {
+  id String @id @default(cuid())
+
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  body String
+
+  /// İç not: sadece AGENT/ADMIN görebilir. Müşteri sorgularında WHERE ile
+  /// filtrelenir — response katmanında değil.
+  isInternal Boolean @default(false)
+
+  attachments Attachment[]
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model Attachment {
+  id String @id @default(cuid())
+
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  /// Yorum ekiyse dolu, ticket'ın ilk mesajının ekiyse null.
+  commentId String?
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  uploadedById String
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+
+  filename   String
+  mimeType   String
+  size       Int
+  /// S3/MinIO objesinin anahtarı.
+  storageKey String @unique
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@index([commentId])
+}
+
+/// Masaüstü uygulamanın ticket açılırken (kullanıcı onayıyla) gönderdiği
+/// makine bilgisi. Destek ekibinin "hangi makine, hangi sürüm?" sorusunu kaldırır.
+model DeviceInfo {
+  id String @id @default(cuid())
+
+  ticketId String @unique
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  os         String
+  hostname   String
+  cpu        String
+  totalMemMb Int
+  freeDiskGb Int
+  localIp    String?
+  appVersion String
+
+  collectedAt DateTime @default(now())
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  actorId String?
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  /// "org.create", "license.rotate", "ticket.status_change" gibi
+  action   String
+  targetId String?
+  meta     Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([action, createdAt])
+  @@index([targetId])
+}

@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ticket}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-degistir-beni}
+      POSTGRES_DB: ${POSTGRES_DB:-ticket_system}
+    ports:
+      # Makinede zaten yerel bir PostgreSQL çalışıyor olabilir; 5432 yerine
+      # 5433 yayınlıyoruz. Kendi kurulumunuzda POSTGRES_PORT ile değiştirin.
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ticket} -d ${POSTGRES_DB:-ticket_system}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Geliştirme ortamında giden e-postaları yakalar — http://localhost:8025
+  # Üretimde bu servisi kaldırıp SMTP_* değişkenlerini gerçek sunucuya çevirin.
+  mailhog:
+    image: mailhog/mailhog:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  postgres_data:
+  minio_data:

@@ -1,0 +1,97 @@
+name: Masaüstü sürümü
+
+# desktop-v0.1.0 gibi bir etiket gönderildiğinde .dmg ve .exe üretir.
+on:
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform: mac
+            artifact: macos-dmg
+          - os: windows-latest
+            platform: win
+            artifact: windows-exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Ortak paketi derle
+        run: npm run build:shared
+
+      - name: Uygulamayı paketle
+        run: npm run --workspace @ticket/desktop pack:${{ matrix.platform }}
+        env:
+          # Otomatik güncelleme akışının adresi (kendi sunucunuz).
+          UPDATE_FEED_URL: ${{ vars.UPDATE_FEED_URL }}
+
+          # ── İmzalama ───────────────────────────────────────────────────────
+          # Bu secret'lar tanımlı değilse build imzasız tamamlanır; sertifikalar
+          # alındığında yalnızca GitHub Secrets'a eklemek yeterli, kod değişmez.
+          #
+          # Windows:  CSC_LINK (base64 .pfx), CSC_KEY_PASSWORD
+          # macOS:    CSC_LINK (base64 .p12), CSC_KEY_PASSWORD,
+          #           APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Sertifika yokken electron-builder'ın imzalama denemesini atlaması için.
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
+
+      - name: Kurulum dosyalarını yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          # latest*.yml dosyaları otomatik güncelleme için gerekli — kurulum
+          # dosyalarıyla birlikte /updates dizinine konmalı.
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/latest*.yml
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: GitHub sürümü oluştur
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          body: |
+            ## Kurulum
+
+            - **Windows:** `.exe` dosyasını indirip çalıştırın
+            - **macOS:** `.dmg` dosyasını açıp uygulamayı Applications klasörüne sürükleyin
+
+            > Uygulama henüz kod imzalı değil. Windows "SmartScreen" uyarısında
+            > *Daha fazla bilgi → Yine de çalıştır*, macOS'te ise uygulamaya sağ
+            > tıklayıp *Aç* deyin. Sertifikalar alındığında bu uyarılar kalkacak.

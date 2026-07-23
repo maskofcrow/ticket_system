@@ -1,0 +1,38 @@
+{
+  "name": "@ticket/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "IT Destek — müşteri masaüstü uygulaması",
+  "main": "./out/main/index.js",
+  "author": "IT Destek Ekibi",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "pack:dir": "npm run build && electron-builder --dir",
+    "pack:mac": "npm run build && electron-builder --mac",
+    "pack:win": "npm run build && electron-builder --win",
+    "pack:all": "npm run build && electron-builder --mac --win"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "electron-updater": "^6.3.9",
+    "systeminformation": "^5.23.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@tanstack/react-query": "^5.62.7",
+    "@ticket/shared": "*",
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "33.4.11",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^4.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "socket.io-client": "^4.8.1",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.2"
+  }
+}

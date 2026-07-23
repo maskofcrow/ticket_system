@@ -1,0 +1,83 @@
+# Üretim dağıtımı. Geliştirme servislerine ek olarak API, web paneli ve
+# otomatik HTTPS sağlayan ters vekil içerir.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Öncesinde .env içinde en az şunları değiştirin:
+#   POSTGRES_PASSWORD, JWT_SECRET, LICENSE_PEPPER, S3_ACCESS_KEY, S3_SECRET_KEY,
+#   PUBLIC_WEB_URL, CORS_ORIGINS, DOMAIN
+
+services:
+  postgres:
+    # Üretimde veritabanı dışarıya açılmaz; yalnızca compose ağı içinden erişilir.
+    ports: !override []
+
+  minio:
+    ports: !override []
+
+  # Geliştirme aracı — üretimde çalışmasın.
+  mailhog:
+    profiles: ['dev-only']
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      API_PORT: 3000
+      # Container ağı içinde servis adlarıyla haberleşilir.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      S3_ENDPOINT: http://minio:9000
+      # İmzalı indirme adresleri tarayıcıya gidiyor; dışarıdan çözülebilir
+      # olmalı, container içi adresle imzalanamaz.
+      S3_PUBLIC_ENDPOINT: https://${DOMAIN}/s3
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      LICENSE_PEPPER: ${LICENSE_PEPPER}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
+      PUBLIC_WEB_URL: https://${DOMAIN}
+      CORS_ORIGINS: https://${DOMAIN}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Panel API'ye aynı alan adı altından /api ile ulaşır — CORS gerekmez.
+        VITE_API_URL: https://${DOMAIN}/api
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [api, web]
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      # Masaüstü uygulama güncelleme dosyaları buraya konur (dmg/exe + latest.yml).
+      - ./updates:/srv/updates:ro
+
+volumes:
+  caddy_data:
+  caddy_config:
