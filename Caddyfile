@@ -14,10 +14,13 @@
 	}
 
 	# ── Dosya ekleri ──────────────────────────────────────────────────────────
-	# İmzalı adresler tarayıcıya gittiği için MinIO dışarıdan erişilebilir olmalı.
-	# Bucket public değil; erişim yalnızca kısa ömürlü imzalı adreslerle mümkün.
-	handle /s3/* {
-		uri strip_prefix /s3
+	# İmzalı adresler tarayıcıya gittiği için depolama dışarıdan erişilebilir
+	# olmalı. Bucket public değil; erişim yalnızca kısa ömürlü imzalı adreslerle.
+	#
+	# Yol bucket adıyla birebir aynı olmalı ve KESİLMEMELİ: S3 imzası istek
+	# yolunu da kapsıyor, `strip_prefix` ile önek soyulduğunda MinIO'nun gördüğü
+	# yol imzalanandan farklı oluyor ve her yükleme 403 dönüyordu.
+	handle /{$S3_BUCKET}/* {
 		reverse_proxy minio:9000
 	}
 

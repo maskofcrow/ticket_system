@@ -160,10 +160,44 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 - `POSTGRES_PASSWORD`, `JWT_SECRET`, `LICENSE_PEPPER` — `openssl rand -base64 48`
 - `S3_ACCESS_KEY`, `S3_SECRET_KEY`
 - `SMTP_*` — gerçek e-posta sunucunuz (MailHog üretimde çalışmaz)
+- `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` — ilk yönetici hesabı
 
-Otomatik güncelleme için release çıktılarını (`.dmg`, `.exe`, `latest*.yml`)
-sunucudaki `./updates` dizinine kopyalayın; `UPDATE_FEED_URL` bunu
-`https://<DOMAIN>/updates` olarak göstermeli.
+Tek alan adı yeterli; her şey aynı domain altında servis edilir:
+
+| Yol | Nereye |
+|---|---|
+| `/` | Web paneli |
+| `/api/*` | API |
+| `/realtime` | Canlı bağlantı (WebSocket) |
+| `/ticket-attachments/*` | Dosya ekleri (imzalı adreslerle) |
+| `/updates/*` | Masaüstü uygulama güncellemeleri |
+
+### Dikkat edilecek üç nokta
+
+**İlk yönetici otomatik oluşur.** Sistemde hiç yönetici yoksa API açılışta
+`SEED_ADMIN_*` değerleriyle bir hesap yaratır ve log'a uyarı yazar. İlk girişten
+sonra şifreyi panelden değiştirip `SEED_ADMIN_PASSWORD` satırını `.env`'den
+silin. Yönetici varken bu mekanizma hiç çalışmaz — sonradan hesap ele geçirmek
+için kullanılamaz.
+
+**`POSTGRES_PASSWORD` yalnızca ilk açılışta yazılır.** Veritabanı birimi bir kez
+oluştuktan sonra parolayı `.env`'de değiştirmek işe yaramaz; API "authentication
+failed" ile döngüye girer. Değiştirmeniz gerekirse:
+
+```bash
+docker compose exec postgres psql -U ticket -c "ALTER USER ticket PASSWORD 'yeni-parola';"
+```
+
+**Dosya eki yolu bucket adıyla aynı olmalı.** S3 imzası istek yolunu da kapsar;
+Caddy'de bu yolu kısaltmak (`strip_prefix`) her yüklemenin 403 dönmesine yol
+açar. `S3_BUCKET` değerini değiştirirseniz Caddy'ye de aynı değeri geçirin —
+compose bunu zaten yapıyor.
+
+### Otomatik güncelleme
+
+Release çıktılarını (`.dmg`, `.exe`, `latest*.yml`) sunucudaki `./updates`
+dizinine kopyalayın; `UPDATE_FEED_URL` bunu `https://<DOMAIN>/updates` olarak
+göstermeli. `latest*.yml` dosyaları olmadan güncelleme kontrolü çalışmaz.
 
 ---
 

@@ -1,5 +1,6 @@
 import { buildApp } from './app.js';
 import { env } from './env.js';
+import { bootstrapFirstAdmin } from './lib/bootstrap.js';
 import { prisma } from './lib/prisma.js';
 import { closeRealtime, initRealtime } from './lib/realtime.js';
 import { ensureBucket } from './lib/storage.js';
@@ -13,6 +14,9 @@ async function main(): Promise<void> {
   } catch (err) {
     app.log.error({ err }, 'S3 bucket hazırlanamadı — dosya ekleri çalışmayabilir');
   }
+
+  // Taze kurulumda ilk yönetici ve kategoriler.
+  await bootstrapFirstAdmin(app.log);
 
   await app.listen({ port: env.API_PORT, host: env.API_HOST });
 
