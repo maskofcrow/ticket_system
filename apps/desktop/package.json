@@ -17,6 +17,7 @@
   "dependencies": {
     "electron-store": "^8.2.0",
     "electron-updater": "^6.3.9",
+    "nodemailer": "9.0.3",
     "systeminformation": "^5.23.5"
   },
   "devDependencies": {
@@ -26,8 +27,8 @@
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
-    "electron": "33.4.11",
-    "electron-builder": "^25.1.8",
+    "electron": "41.7.1",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^4.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
