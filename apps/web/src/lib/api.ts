@@ -109,7 +109,22 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
 
-  let response = await send();
+  let response: Response;
+  try {
+    response = await send();
+  } catch {
+    /**
+     * `fetch` yalnızca ağ seviyesinde başarısız olunca fırlatır: API kapalı,
+     * sunucuya ulaşılamıyor veya CORS reddi. Yakalanmazsa arayüze tarayıcının
+     * ham "Failed to fetch" metni düşüyor ve kullanıcı ne olduğunu anlamıyor.
+     */
+    throw new ApiError(
+      0,
+      'NETWORK',
+      'Sunucuya bağlanılamadı. API çalışmıyor olabilir — ' +
+        'terminalde `npm run dev:api` komutunun çalıştığından emin olun.',
+    );
+  }
 
   // Token süresi dolmuşsa bir kez yenileyip isteği tekrarla.
   if (response.status === 401 && !options.skipAuth) {

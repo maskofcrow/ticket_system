@@ -19,6 +19,7 @@
     "infra:down": "docker compose down",
     "db:migrate": "npm run -w @ticket/api db:migrate",
     "db:seed": "npm run -w @ticket/api db:seed",
+    "db:reset": "npm run -w @ticket/api db:reset",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"
