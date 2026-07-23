@@ -17,28 +17,44 @@ IT ekibi hesapları tek tek oluşturmak zorunda kalmaz.
 ## Hızlı başlangıç (geliştirme)
 
 ```bash
-cp .env.example .env
-npm install
-npm run infra:up
+cp .env.example .env && npm install
 ```
 
 ```bash
-npm run build:shared && npm run db:migrate && npm run db:seed
+npm run db:migrate && npm run db:seed
 ```
 
-Üç uygulamayı ayrı terminallerde çalıştırın:
-
-```bash
-npm run dev:api
-```
+Sonrasında her şeyi tek komutla başlatın:
 
 ```bash
-npm run dev:web
+npm run dev
 ```
+
+Bu komut sırayla: ortamı kontrol eder (port, Docker, `.env`), ortak paketi
+derler, veritabanı ve dosya depolamayı ayağa kaldırır, sonra API ile web
+panelini birlikte çalıştırır. Durdurmak için Ctrl+C — ikisi birden kapanır.
+
+Masaüstü uygulaması ayrı bir pencere açtığı için ayrı çalışır:
 
 ```bash
 npm run dev:desktop
 ```
+
+> **npm kullanın, pnpm değil.** Proje npm workspaces üzerine kurulu; pnpm bu
+> alanı tanımadığı için yalnızca kök bağımlılıkları kurar ve kurulumu bozar.
+> CI ile iki Dockerfile da `npm ci` + `package-lock.json` bekliyor.
+
+### Bir şey çalışmazsa
+
+`npm run dev` başlamadan önce ortamı kontrol eder ve sorunu adıyla söyler —
+dolu port, kapalı Docker, eksik `.env`. En sık karşılaşılan:
+
+```bash
+kill $(lsof -t -iTCP:3000 -sTCP:LISTEN)
+```
+
+Panel "Sunucuya bağlanılamadı" diyorsa API çalışmıyordur; aynı terminalde
+`npm run dev` çıktısına bakın.
 
 | Adres | Ne |
 |---|---|

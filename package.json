@@ -10,7 +10,11 @@
   "engines": {
     "node": ">=20.0.0"
   },
+  "//paketYoneticisi": "Proje npm workspaces kullanıyor. pnpm bu alanı tanımaz (pnpm-workspace.yaml ister) ve kurulumu bozar; CI ile iki Dockerfile da npm ci + package-lock.json bekliyor.",
+  "packageManager": "npm@11.18.0",
   "scripts": {
+    "dev": "concurrently -k -n api,web -c cyan,green \"npm:dev:api\" \"npm:dev:web\"",
+    "predev": "node scripts/preflight.mjs && npm run build:shared && npm run infra:up",
     "build:shared": "npm run -w @ticket/shared build",
     "dev:api": "npm run -w @ticket/api dev",
     "dev:web": "npm run -w @ticket/web dev",
@@ -25,6 +29,7 @@
     "test": "npm run test --workspaces --if-present"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "typescript": "^5.7.2",
     "vite": "^6.4.3"
   },

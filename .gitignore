@@ -14,3 +14,6 @@ coverage/
 updates/
 apps/desktop/dist-electron/
 apps/api/prisma/generated/
+# Proje npm workspaces kullanıyor; pnpm kilit dosyası yanlışlıkla commitlenmesin.
+pnpm-lock.yaml
+yarn.lock
