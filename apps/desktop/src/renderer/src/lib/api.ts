@@ -1,4 +1,16 @@
-import type { AuthResponse, ErrorResponse } from '@ticket/shared';
+import type {
+  HataCevabi,
+  KimlikCevabi,
+  Kategori,
+  ListeCevabi,
+  MesajOlusturIstegi,
+  Mesaj,
+  TalepDetayi,
+  TalepOlusturIstegi,
+  TalepOzeti,
+  YuklemeIzniCevabi,
+  YuklemeIzniIstegi,
+} from '../../../shared/sozlesme.js';
 import type { DesktopApi } from '../../../preload/index.js';
 
 declare global {
@@ -7,21 +19,32 @@ declare global {
   }
 }
 
-export class ApiError extends Error {
+/**
+ * EstaCRM destek API istemcisi.
+ *
+ * Tüm uçlar `/api/destek` altında ve Türkçe adlı. Alan adları sunucuyla birebir
+ * aynı tutuluyor (bkz. shared/sozlesme.ts) — çeviri katmanı yok, çünkü iki isim
+ * seti arasındaki sessiz kayma en pahalı hata türü.
+ */
+
+/** Sunucudaki tüm destek uçlarının ortak öneki. */
+const ONEK = '/api/destek';
+
+export class ApiHatasi extends Error {
   constructor(
-    readonly status: number,
-    readonly code: string,
-    message: string,
-    readonly fields?: Record<string, string>,
+    readonly durum: number,
+    readonly kod: string,
+    mesaj: string,
+    readonly alanlar?: Record<string, string>,
   ) {
-    super(message);
-    this.name = 'ApiError';
+    super(mesaj);
+    this.name = 'ApiHatasi';
   }
 }
 
-let apiUrl = 'http://localhost:3000';
-let accessToken: string | null = null;
-let onSessionLost: (() => void) | null = null;
+let apiUrl = 'https://crm.estabilisim.com';
+let erisimJetonu: string | null = null;
+let oturumKaybedildi: (() => void) | null = null;
 
 export async function initApi(): Promise<void> {
   apiUrl = await window.desktop.config.getApiUrl();
@@ -36,127 +59,185 @@ export async function setApiUrl(url: string): Promise<void> {
   await window.desktop.config.setApiUrl(apiUrl);
 }
 
-export function getAccessToken(): string | null {
-  return accessToken;
+export function getErisimJetonu(): string | null {
+  return erisimJetonu;
 }
 
-export function setSessionLostHandler(handler: () => void): void {
-  onSessionLost = handler;
+export function setOturumKaybiHandler(handler: () => void): void {
+  oturumKaybedildi = handler;
 }
 
 /**
- * Oturum bilgisini uygular: access token bellekte, refresh token ise ana süreçte
- * safeStorage ile şifrelenip diske yazılır. Renderer refresh token'ı hiç saklamaz.
+ * Erişim jetonu yalnızca bellekte; yenileme jetonu ana süreçte safeStorage ile
+ * şifrelenip diske yazılır. Renderer yenileme jetonunu hiç saklamaz.
  */
-export async function applyAuth(data: AuthResponse): Promise<void> {
-  accessToken = data.accessToken;
-  await window.desktop.auth.setRefreshToken(data.refreshToken);
+export async function kimligiUygula(veri: KimlikCevabi): Promise<void> {
+  erisimJetonu = veri.erisimJetonu;
+  await window.desktop.auth.setRefreshToken(veri.yenilemeJetonu);
 }
 
-export async function clearAuth(): Promise<void> {
-  accessToken = null;
+export async function kimligiTemizle(): Promise<void> {
+  erisimJetonu = null;
   await window.desktop.auth.setRefreshToken(null);
 }
 
-let refreshInFlight: Promise<boolean> | null = null;
+let yenilemeSuruyor: Promise<boolean> | null = null;
 
-async function refreshSession(): Promise<boolean> {
-  const stored = await window.desktop.auth.getRefreshToken();
-  if (!stored) return false;
+async function oturumuYenile(): Promise<boolean> {
+  const saklanan = await window.desktop.auth.getRefreshToken();
+  if (!saklanan) return false;
 
   // Paralel isteklerin hepsi 401 alınca tek bir yenileme yapılsın; aksi halde
-  // rotasyon nedeniyle ilk yenileme dışındakiler geçersiz token kullanırdı.
-  refreshInFlight ??= (async () => {
+  // jeton rotasyonu nedeniyle ilk yenileme dışındakiler geçersiz jeton kullanır.
+  yenilemeSuruyor ??= (async () => {
     try {
-      const res = await fetch(`${apiUrl}/auth/refresh`, {
+      const res = await fetch(`${apiUrl}${ONEK}/auth/yenile`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ refreshToken: stored }),
+        body: JSON.stringify({ yenilemeJetonu: saklanan }),
       });
       if (!res.ok) return false;
-      await applyAuth((await res.json()) as AuthResponse);
+      await kimligiUygula((await res.json()) as KimlikCevabi);
       return true;
     } catch {
       return false;
     } finally {
-      refreshInFlight = null;
+      yenilemeSuruyor = null;
     }
   })();
 
-  return refreshInFlight;
+  return yenilemeSuruyor;
 }
 
-/** Kaydedilmiş refresh token ile sessizce oturum açmayı dener. */
-export async function restoreSession(): Promise<AuthResponse | null> {
-  const stored = await window.desktop.auth.getRefreshToken();
-  if (!stored) return null;
+/** Kaydedilmiş yenileme jetonuyla sessizce oturum açmayı dener. */
+export async function oturumuGeriYukle(): Promise<KimlikCevabi | null> {
+  const saklanan = await window.desktop.auth.getRefreshToken();
+  if (!saklanan) return null;
 
   try {
-    const res = await fetch(`${apiUrl}/auth/refresh`, {
+    const res = await fetch(`${apiUrl}${ONEK}/auth/yenile`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ refreshToken: stored }),
+      body: JSON.stringify({ yenilemeJetonu: saklanan }),
     });
     if (!res.ok) {
-      await clearAuth();
+      await kimligiTemizle();
       return null;
     }
-    const data = (await res.json()) as AuthResponse;
-    await applyAuth(data);
-    return data;
+    const veri = (await res.json()) as KimlikCevabi;
+    await kimligiUygula(veri);
+    return veri;
   } catch {
     return null;
   }
 }
 
-interface RequestOptions {
+interface IstekSecenekleri {
   method?: string;
   body?: unknown;
   query?: Record<string, string | number | undefined>;
-  skipAuth?: boolean;
+  kimliksiz?: boolean;
 }
 
-export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const url = new URL(`${apiUrl}${path}`);
-  for (const [key, value] of Object.entries(options.query ?? {})) {
-    if (value !== undefined && value !== '') url.searchParams.set(key, String(value));
+export async function apiFetch<T>(yol: string, secenek: IstekSecenekleri = {}): Promise<T> {
+  const url = new URL(`${apiUrl}${ONEK}${yol}`);
+  for (const [anahtar, deger] of Object.entries(secenek.query ?? {})) {
+    if (deger !== undefined && deger !== '') url.searchParams.set(anahtar, String(deger));
   }
 
-  const send = (): Promise<Response> =>
+  const gonder = (): Promise<Response> =>
     fetch(url, {
-      method: options.method ?? 'GET',
+      method: secenek.method ?? 'GET',
       headers: {
-        ...(options.body ? { 'content-type': 'application/json' } : {}),
-        ...(accessToken && !options.skipAuth ? { authorization: `Bearer ${accessToken}` } : {}),
+        ...(secenek.body ? { 'content-type': 'application/json' } : {}),
+        ...(erisimJetonu && !secenek.kimliksiz
+          ? { authorization: `Bearer ${erisimJetonu}` }
+          : {}),
       },
-      body: options.body ? JSON.stringify(options.body) : undefined,
+      body: secenek.body ? JSON.stringify(secenek.body) : undefined,
     });
 
-  let response: Response;
+  let cevap: Response;
   try {
-    response = await send();
+    cevap = await gonder();
   } catch {
-    throw new ApiError(0, 'NETWORK', 'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.');
-  }
-
-  if (response.status === 401 && !options.skipAuth) {
-    if (await refreshSession()) response = await send();
-    else onSessionLost?.();
-  }
-
-  if (response.status === 204) return undefined as T;
-
-  const payload: unknown = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const err = (payload as ErrorResponse | null)?.error;
-    throw new ApiError(
-      response.status,
-      err?.code ?? 'UNKNOWN',
-      err?.message ?? 'Beklenmeyen bir hata oluştu',
-      err?.fields,
+    throw new ApiHatasi(
+      0,
+      'AG',
+      'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.',
     );
   }
 
-  return payload as T;
+  if (cevap.status === 401 && !secenek.kimliksiz) {
+    if (await oturumuYenile()) cevap = await gonder();
+    else oturumKaybedildi?.();
+  }
+
+  if (cevap.status === 204) return undefined as T;
+
+  const govde: unknown = await cevap.json().catch(() => null);
+
+  if (!cevap.ok) {
+    const h = (govde as HataCevabi | null)?.hata;
+    throw new ApiHatasi(
+      cevap.status,
+      h?.kod ?? 'BILINMEYEN',
+      h?.mesaj ?? 'Beklenmeyen bir hata oluştu',
+      h?.alanlar,
+    );
+  }
+
+  return govde as T;
 }
+
+// ── Uçlar ────────────────────────────────────────────────────────────────────
+
+export const api = {
+  aktivasyon: (govde: {
+    lisansAnahtari: string;
+    eposta: string;
+    ad: string;
+    parola: string;
+  }) =>
+    apiFetch<KimlikCevabi>('/auth/aktivasyon', {
+      method: 'POST',
+      body: govde,
+      kimliksiz: true,
+    }),
+
+  giris: (govde: { eposta: string; parola: string }) =>
+    apiFetch<KimlikCevabi>('/auth/giris', {
+      method: 'POST',
+      body: govde,
+      kimliksiz: true,
+    }),
+
+  cikis: () => apiFetch<void>('/auth/cikis', { method: 'POST' }),
+
+  talepler: () =>
+    apiFetch<ListeCevabi<TalepOzeti>>('/talepler').then((c) => c.kayitlar),
+
+  talep: (id: string) => apiFetch<TalepDetayi>(`/talepler/${id}`),
+
+  talepOlustur: (govde: TalepOlusturIstegi) =>
+    apiFetch<TalepDetayi>('/talepler', { method: 'POST', body: govde }),
+
+  mesajYaz: (talepId: string, govde: MesajOlusturIstegi) =>
+    apiFetch<Mesaj>(`/talepler/${talepId}/mesajlar`, {
+      method: 'POST',
+      body: govde,
+    }),
+
+  /** Müşteri yalnızca talebini kapatabilir; diğer alanlarda sunucu 403 döner. */
+  talebiKapat: (talepId: string) =>
+    apiFetch<TalepDetayi>(`/talepler/${talepId}`, {
+      method: 'PATCH',
+      body: { durum: 'KAPALI' },
+    }),
+
+  kategoriler: () =>
+    apiFetch<ListeCevabi<Kategori>>('/kategoriler').then((c) => c.kayitlar),
+
+  yuklemeIzni: (govde: YuklemeIzniIstegi) =>
+    apiFetch<YuklemeIzniCevabi>('/yukleme', { method: 'POST', body: govde }),
+};

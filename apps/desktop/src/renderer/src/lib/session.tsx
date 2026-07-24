@@ -1,86 +1,74 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { AuthResponse, SessionUser } from '@ticket/shared';
-import { apiFetch, applyAuth, clearAuth, initApi, restoreSession, setSessionLostHandler } from './api';
+import type { Kullanici } from '../../../shared/sozlesme.js';
+import { api, kimligiUygula, kimligiTemizle, initApi, oturumuGeriYukle, setOturumKaybiHandler } from './api';
 
-interface SessionValue {
-  user: SessionUser | null;
-  loading: boolean;
-  activate: (input: {
-    licenseKey: string;
-    email: string;
-    name: string;
-    password: string;
+interface OturumDegeri {
+  kullanici: Kullanici | null;
+  yukleniyor: boolean;
+  aktivasyon: (girdi: {
+    lisansAnahtari: string;
+    eposta: string;
+    ad: string;
+    parola: string;
   }) => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+  giris: (eposta: string, parola: string) => Promise<void>;
+  cikis: () => Promise<void>;
 }
 
-const SessionContext = createContext<SessionValue | null>(null);
+const OturumContext = createContext<OturumDegeri | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [kullanici, setKullanici] = useState<Kullanici | null>(null);
+  const [yukleniyor, setYukleniyor] = useState(true);
 
-  const reset = useCallback(() => {
-    void clearAuth();
-    setUser(null);
+  const sifirla = useCallback(() => {
+    void kimligiTemizle();
+    setKullanici(null);
   }, []);
 
   useEffect(() => {
-    setSessionLostHandler(reset);
-  }, [reset]);
+    setOturumKaybiHandler(sifirla);
+  }, [sifirla]);
 
   // Açılışta: kayıtlı sunucu adresini yükle, sonra oturumu geri getirmeyi dene.
   useEffect(() => {
     void (async () => {
       await initApi();
-      const restored = await restoreSession();
-      if (restored) setUser(restored.user);
-      setLoading(false);
+      const geri = await oturumuGeriYukle();
+      if (geri) setKullanici(geri.kullanici);
+      setYukleniyor(false);
     })();
   }, []);
 
-  const activate = useCallback<SessionValue['activate']>(async (input) => {
-    const data = await apiFetch<AuthResponse>('/auth/activate', {
-      method: 'POST',
-      body: input,
-      skipAuth: true,
-    });
-    await applyAuth(data);
-    setUser(data.user);
+  const aktivasyon = useCallback<OturumDegeri['aktivasyon']>(async (girdi) => {
+    const veri = await api.aktivasyon(girdi);
+    await kimligiUygula(veri);
+    setKullanici(veri.kullanici);
   }, []);
 
-  const login = useCallback<SessionValue['login']>(async (email, password) => {
-    const data = await apiFetch<AuthResponse>('/auth/login', {
-      method: 'POST',
-      body: { email, password },
-      skipAuth: true,
-    });
-    await applyAuth(data);
-    setUser(data.user);
+  const giris = useCallback<OturumDegeri['giris']>(async (eposta, parola) => {
+    const veri = await api.giris({ eposta, parola });
+    await kimligiUygula(veri);
+    setKullanici(veri.kullanici);
   }, []);
 
-  const logout = useCallback(async () => {
-    const stored = await window.desktop.auth.getRefreshToken();
-    if (stored) {
-      await apiFetch('/auth/logout', { method: 'POST', body: { refreshToken: stored } }).catch(
-        () => undefined,
-      );
-    }
-    reset();
-  }, [reset]);
+  const cikis = useCallback(async () => {
+    // Sunucudaki oturumu da iptal et; başarısız olsa da yerelde temizliyoruz.
+    await api.cikis().catch(() => undefined);
+    sifirla();
+  }, [sifirla]);
 
-  const value = useMemo(
-    () => ({ user, loading, activate, login, logout }),
-    [user, loading, activate, login, logout],
+  const deger = useMemo(
+    () => ({ kullanici, yukleniyor, aktivasyon, giris, cikis }),
+    [kullanici, yukleniyor, aktivasyon, giris, cikis],
   );
 
-  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+  return <OturumContext.Provider value={deger}>{children}</OturumContext.Provider>;
 }
 
-export function useSession(): SessionValue {
-  const ctx = useContext(SessionContext);
+export function useSession(): OturumDegeri {
+  const ctx = useContext(OturumContext);
   if (!ctx) throw new Error('useSession, SessionProvider içinde kullanılmalı');
   return ctx;
 }

@@ -1,73 +1,107 @@
 import { useEffect } from 'react';
-import { io, type Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
-import { SOCKET_EVENTS, type ServerToClientEvents } from '@ticket/shared';
-import { getAccessToken, getApiUrl } from './api';
+import type { TalepOlayi } from '../../../shared/sozlesme.js';
+import { getErisimJetonu, getApiUrl } from './api';
 
 /**
- * Canlı bağlantı: destek yanıt verdiğinde native bildirim gösterir ve açık
- * listeleri tazeler. İç notlar sunucu tarafında müşteri odasına hiç
- * gönderilmediği için buraya ulaşmaz.
+ * Canlı akış (SSE): destek yanıt verdiğinde native bildirim gösterir ve açık
+ * listeleri tazeler.
+ *
+ * Socket.IO yerine SSE kullanılıyor — ihtiyaç tek yönlü (sunucu → istemci) ve
+ * CRM tarafında özel bir soket sunucusu gerektirmiyor.
+ *
+ * İç notlar sunucuda müşteri dinleyicisinden eleniyor (olaylar.ts `dinle()`),
+ * bu yüzden buraya hiç ulaşmaz.
  */
+
 /**
  * Okunmamış sayacı modül seviyesinde: rozeti temizleyen ekranlarla aynı değeri
  * paylaşmalı, aksi halde temizlemeden sonra sayaç kaldığı yerden devam ederdi.
  */
-let unread = 0;
+let okunmamis = 0;
 
-export function useLiveUpdates(enabled: boolean, currentUserId: string | undefined): void {
+export function useLiveUpdates(etkin: boolean, kullaniciId: string | undefined): void {
   const qc = useQueryClient();
 
   useEffect(() => {
-    if (!enabled) return;
-    const token = getAccessToken();
-    if (!token) return;
+    if (!etkin) return;
+    const jeton = getErisimJetonu();
+    if (!jeton) return;
 
-    const socket: Socket<ServerToClientEvents> = io(getApiUrl(), {
-      path: '/realtime',
-      auth: { token },
-      transports: ['websocket'],
-    });
+    /**
+     * EventSource özel başlık gönderemediği için jeton sorgu dizisinde gidiyor.
+     * Kısa ömürlü erişim jetonu olduğu için kabul edilebilir; kalıcı yenileme
+     * jetonu buraya asla girmez (sunucu tarafı da bunu böyle bekliyor).
+     */
+    const adres = `${getApiUrl()}/api/destek/akis?jeton=${encodeURIComponent(jeton)}`;
+    const kaynak = new EventSource(adres);
 
-    socket.on(SOCKET_EVENTS.commentCreated, (payload) => {
-      void qc.invalidateQueries({ queryKey: ['tickets'] });
-      void qc.invalidateQueries({ queryKey: ['ticket', payload.ticketId] });
-
-      // Kendi yazdığımız mesaj için bildirim gösterme.
-      if (payload.comment.author.id === currentUserId) return;
-
-      unread += 1;
-      void window.desktop.app.setBadge(unread);
-      void window.desktop.notify(
-        `#${payload.ticketNumber} — yanıt geldi`,
-        `${payload.comment.author.name}: ${payload.comment.body.slice(0, 120)}`,
-      );
-    });
-
-    socket.on(SOCKET_EVENTS.ticketUpdated, (payload) => {
-      void qc.invalidateQueries({ queryKey: ['tickets'] });
-      void qc.invalidateQueries({ queryKey: ['ticket', payload.ticket.id] });
-
-      if (payload.changed.includes('status')) {
-        void window.desktop.notify(
-          `#${payload.ticket.number} — durum güncellendi`,
-          payload.ticket.title,
-        );
+    kaynak.onmessage = (olayVerisi) => {
+      let olay: TalepOlayi;
+      try {
+        olay = JSON.parse(olayVerisi.data) as TalepOlayi;
+      } catch {
+        return;
       }
-    });
 
-    socket.on(SOCKET_EVENTS.ticketCreated, () => {
-      void qc.invalidateQueries({ queryKey: ['tickets'] });
-    });
+      switch (olay.tur) {
+        case 'mesaj:eklendi': {
+          void qc.invalidateQueries({ queryKey: ['talepler'] });
+          void qc.invalidateQueries({ queryKey: ['talep', olay.talepId] });
+
+          // Kendi yazdığımız mesaj için bildirim gösterme.
+          if (olay.mesaj.yazarTipi === 'MUSTERI') return;
+
+          okunmamis += 1;
+          void window.desktop.app.setBadge(okunmamis);
+          void window.desktop.notify(
+            `#${olay.talepNumara} — yanıt geldi`,
+            olay.mesaj.icerik.slice(0, 120),
+          );
+          break;
+        }
+
+        case 'talep:guncellendi': {
+          void qc.invalidateQueries({ queryKey: ['talepler'] });
+          void qc.invalidateQueries({ queryKey: ['talep', olay.talep.id] });
+
+          if (olay.degisen.includes('durum')) {
+            void window.desktop.notify(
+              `#${olay.talep.numara} — durum güncellendi`,
+              olay.talep.baslik,
+            );
+          }
+          break;
+        }
+
+        case 'talep:olusturuldu': {
+          void qc.invalidateQueries({ queryKey: ['talepler'] });
+          break;
+        }
+
+        default:
+          // 'baglandi' ve ileride eklenecek olaylar sessizce yok sayılır.
+          break;
+      }
+    };
+
+    /**
+     * EventSource kopukluğu kendi başına yeniden dener; burada yalnızca
+     * gürültüyü kesiyoruz. Kalıcı 401'de akış kapanır ve sonraki API isteği
+     * zaten oturumu yeniler.
+     */
+    kaynak.onerror = () => {
+      /* sessiz — tarayıcı otomatik yeniden bağlanır */
+    };
 
     return () => {
-      socket.close();
+      kaynak.close();
     };
-  }, [enabled, currentUserId, qc]);
+  }, [etkin, kullaniciId, qc]);
 }
 
 /** Kullanıcı talepleri görüntüleyince rozeti ve sayacı sıfırla. */
 export function clearBadge(): void {
-  unread = 0;
+  okunmamis = 0;
   void window.desktop.app.setBadge(0);
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { LICENSE_KEY_REGEX } from '@ticket/shared';
+import { LISANS_REGEX } from '../../../shared/sozlesme.js';
 import { useSession } from '../lib/session';
-import { ApiError, getApiUrl, setApiUrl } from '../lib/api';
+import { ApiHatasi, getApiUrl, setApiUrl } from '../lib/api';
 import { Button, Card, ErrorBanner, Field, Input, InfoBanner } from '../components/ui';
 
 type Mode = 'activate' | 'login';
@@ -11,7 +11,7 @@ type Mode = 'activate' | 'login';
  * daha önce kaydolmuş kullanıcı e-posta/şifre ile girer.
  */
 export function WelcomeScreen() {
-  const { activate, login } = useSession();
+  const { aktivasyon, giris } = useSession();
   const [mode, setMode] = useState<Mode>('activate');
   const [showServerSettings, setShowServerSettings] = useState(false);
   const [serverUrl, setServerUrl] = useState('');
@@ -34,10 +34,10 @@ export function WelcomeScreen() {
     const cleaned = raw
       .toUpperCase()
       .replace(/[^0-9A-Z]/g, '')
-      .replace(/^TCK/, '')
+      .replace(/^ESTA/, '')
       .slice(0, 16);
     const groups = cleaned.match(/.{1,4}/g) ?? [];
-    setLicenseKey(cleaned ? `TCK-${groups.join('-')}` : '');
+    setLicenseKey(cleaned ? `ESTA-${groups.join('-')}` : '');
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -47,14 +47,19 @@ export function WelcomeScreen() {
     setBusy(true);
     try {
       if (mode === 'activate') {
-        await activate({ licenseKey, email: email.trim(), name: name.trim(), password });
+        await aktivasyon({
+          lisansAnahtari: licenseKey,
+          eposta: email.trim(),
+          ad: name.trim(),
+          parola: password,
+        });
       } else {
-        await login(email.trim(), password);
+        await giris(email.trim(), password);
       }
     } catch (err) {
-      if (err instanceof ApiError) {
+      if (err instanceof ApiHatasi) {
         setError(err.message);
-        setFieldErrors(err.fields ?? {});
+        setFieldErrors(err.alanlar ?? {});
       } else {
         setError('İşlem tamamlanamadı');
       }
@@ -63,7 +68,7 @@ export function WelcomeScreen() {
     }
   }
 
-  const licenseValid = LICENSE_KEY_REGEX.test(licenseKey);
+  const licenseValid = LISANS_REGEX.test(licenseKey);
 
   return (
     <div className="flex h-full flex-col">
@@ -95,12 +100,12 @@ export function WelcomeScreen() {
                 <Field
                   label="Firma lisans anahtarı"
                   hint="IT ekibinizden aldığınız anahtar"
-                  error={fieldErrors.licenseKey}
+                  error={fieldErrors.lisansAnahtari}
                 >
                   <Input
                     value={licenseKey}
                     onChange={(e) => handleLicenseChange(e.target.value)}
-                    placeholder="TCK-XXXX-XXXX-XXXX-XXXX"
+                    placeholder="ESTA-XXXX-XXXX-XXXX-XXXX"
                     className={`font-mono tracking-wide ${
                       licenseKey && !licenseValid ? 'ring-amber-400' : ''
                     }`}
@@ -109,13 +114,13 @@ export function WelcomeScreen() {
                   />
                 </Field>
 
-                <Field label="Ad soyad" error={fieldErrors.name}>
+                <Field label="Ad soyad" error={fieldErrors.ad}>
                   <Input value={name} onChange={(e) => setName(e.target.value)} required />
                 </Field>
               </>
             )}
 
-            <Field label="E-posta" error={fieldErrors.email}>
+            <Field label="E-posta" error={fieldErrors.eposta}>
               <Input
                 type="email"
                 value={email}
@@ -128,7 +133,7 @@ export function WelcomeScreen() {
             <Field
               label="Şifre"
               hint={mode === 'activate' ? 'En az 8 karakter' : undefined}
-              error={fieldErrors.password}
+              error={fieldErrors.parola}
             >
               <Input
                 type="password"

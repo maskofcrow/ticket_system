@@ -1,14 +1,14 @@
 import { useEffect, useState, type ClipboardEvent, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  PRIORITY_LABELS,
-  type AttachmentRef,
-  type Category,
-  type DeviceInfo,
-  type Priority,
-  type TicketDetail,
-} from '@ticket/shared';
-import { apiFetch, ApiError } from '../lib/api';
+  ONCELIK_ETIKET,
+  type EkReferansi,
+  type Kategori,
+  type CihazBilgisi,
+  type TalepOnceligi,
+  type TalepDetayi,
+} from '../../../shared/sozlesme.js';
+import { api, ApiHatasi } from '../lib/api';
 import { dataUrlToBlob, screenshotFilename, uploadFile } from '../lib/upload';
 import { Button, Card, ErrorBanner, Field, Input, InfoBanner, Select, Textarea } from '../components/ui';
 
@@ -23,22 +23,22 @@ export function NewTicketScreen({
   onCreated,
   onCancel,
 }: {
-  onCreated: (ticket: TicketDetail) => void;
+  onCreated: (talep: TalepDetayi) => void;
   onCancel: () => void;
 }) {
   const qc = useQueryClient();
   const categories = useQuery({
-    queryKey: ['categories'],
-    queryFn: () => apiFetch<Category[]>('/categories'),
+    queryKey: ['kategoriler'],
+    queryFn: () => api.kategoriler(),
   });
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [priority, setPriority] = useState<Priority>('NORMAL');
+  const [priority, setPriority] = useState<TalepOnceligi>('NORMAL');
   const [categoryId, setCategoryId] = useState('');
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
 
-  const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
+  const [deviceInfo, setDeviceInfo] = useState<CihazBilgisi | null>(null);
   const [shareDevice, setShareDevice] = useState(true);
   const [showDeviceDetails, setShowDeviceDetails] = useState(false);
 
@@ -60,26 +60,23 @@ export function NewTicketScreen({
 
   const create = useMutation({
     mutationFn: async () => {
-      const uploaded: AttachmentRef[] = [];
+      const yuklenen: EkReferansi[] = [];
       for (const item of attachments) {
-        uploaded.push(await uploadFile(item.blob, item.filename));
+        yuklenen.push(await uploadFile(item.blob, item.filename));
       }
 
-      return apiFetch<TicketDetail>('/tickets', {
-        method: 'POST',
-        body: {
-          title: title.trim(),
-          body: body.trim(),
-          priority,
-          categoryId: categoryId || null,
-          deviceInfo: shareDevice ? deviceInfo : null,
-          attachments: uploaded,
-        },
+      return api.talepOlustur({
+        baslik: title.trim(),
+        aciklama: body.trim(),
+        oncelik: priority,
+        kategoriId: categoryId || null,
+        cihazBilgisi: shareDevice ? deviceInfo : null,
+        ekler: yuklenen,
       });
     },
-    onSuccess: (ticket) => {
-      void qc.invalidateQueries({ queryKey: ['tickets'] });
-      onCreated(ticket);
+    onSuccess: (talep) => {
+      void qc.invalidateQueries({ queryKey: ['talepler'] });
+      onCreated(talep);
     },
   });
 
@@ -134,9 +131,9 @@ export function NewTicketScreen({
     try {
       await create.mutateAsync();
     } catch (err) {
-      if (err instanceof ApiError) {
+      if (err instanceof ApiHatasi) {
         setError(err.message);
-        setFieldErrors(err.fields ?? {});
+        setFieldErrors(err.alanlar ?? {});
       } else setError('Talep oluşturulamadı');
     }
   }
@@ -153,7 +150,7 @@ export function NewTicketScreen({
       {error && <ErrorBanner message={error} />}
 
       <Card className="space-y-4 p-4">
-        <Field label="Konu" error={fieldErrors.title}>
+        <Field label="Konu" error={fieldErrors.baslik}>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -166,8 +163,8 @@ export function NewTicketScreen({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Öncelik">
-            <Select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
-              {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
+            <Select value={priority} onChange={(e) => setPriority(e.target.value as TalepOnceligi)}>
+              {Object.entries(ONCELIK_ETIKET).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
@@ -178,9 +175,9 @@ export function NewTicketScreen({
           <Field label="Kategori">
             <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
               <option value="">Seçiniz (isteğe bağlı)</option>
-              {categories.data?.map((c) => (
+              {categories.data?.map((c: Kategori) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {c.ad}
                 </option>
               ))}
             </Select>
@@ -190,7 +187,7 @@ export function NewTicketScreen({
         <Field
           label="Sorunun açıklaması"
           hint="Ne zaman başladı, ne yapmayı denediniz, hata mesajı var mı?"
-          error={fieldErrors.body}
+          error={fieldErrors.aciklama}
         >
           <Textarea
             rows={7}
@@ -277,13 +274,13 @@ export function NewTicketScreen({
 
         {showDeviceDetails && deviceInfo && (
           <dl className="mt-3 space-y-1 rounded-md bg-slate-50 p-3 text-xs">
-            <DeviceRow label="İşletim sistemi" value={deviceInfo.os} />
-            <DeviceRow label="Bilgisayar adı" value={deviceInfo.hostname} />
-            <DeviceRow label="İşlemci" value={deviceInfo.cpu} />
-            <DeviceRow label="Bellek" value={`${Math.round(deviceInfo.totalMemMb / 1024)} GB`} />
-            <DeviceRow label="Boş disk" value={`${deviceInfo.freeDiskGb} GB`} />
-            {deviceInfo.localIp && <DeviceRow label="Yerel IP" value={deviceInfo.localIp} />}
-            <DeviceRow label="Uygulama sürümü" value={deviceInfo.appVersion} />
+            <DeviceRow label="İşletim sistemi" value={deviceInfo.isletimSistemi} />
+            <DeviceRow label="Bilgisayar adı" value={deviceInfo.bilgisayarAdi} />
+            <DeviceRow label="İşlemci" value={deviceInfo.islemci} />
+            <DeviceRow label="Bellek" value={`${Math.round(deviceInfo.toplamBellekMb / 1024)} GB`} />
+            <DeviceRow label="Boş disk" value={`${deviceInfo.bosDiskGb} GB`} />
+            {deviceInfo.yerelIp && <DeviceRow label="Yerel IP" value={deviceInfo.yerelIp} />}
+            <DeviceRow label="Uygulama sürümü" value={deviceInfo.uygulamaSurumu} />
           </dl>
         )}
       </Card>

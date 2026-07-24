@@ -2,9 +2,9 @@
   "name": "ticket-system",
   "version": "0.1.0",
   "private": true,
-  "description": "IT destek ticket sistemi — web paneli + masaüstü müşteri uygulaması",
+  "description": "EstaCRM destek modülünün masaüstü müşteri uygulaması (Electron)",
+  "//sunucu": "API ve personel paneli EstaCRM'e taşındı (estacrm deposu, app/api/destek ve app/(panel)/destek). Bu depo yalnızca müşteri masaüstü istemcisini barındırır.",
   "workspaces": [
-    "packages/*",
     "apps/*"
   ],
   "engines": {
@@ -13,17 +13,10 @@
   "//paketYoneticisi": "Proje npm workspaces kullanıyor. pnpm bu alanı tanımaz (pnpm-workspace.yaml ister) ve kurulumu bozar; CI ile iki Dockerfile da npm ci + package-lock.json bekliyor.",
   "packageManager": "npm@11.18.0",
   "scripts": {
-    "dev": "concurrently -k -n api,web -c cyan,green \"npm:dev:api\" \"npm:dev:web\"",
-    "predev": "node scripts/preflight.mjs && npm run build:shared && npm run infra:up",
-    "build:shared": "npm run -w @ticket/shared build",
-    "dev:api": "npm run -w @ticket/api dev",
-    "dev:web": "npm run -w @ticket/web dev",
+    "dev": "npm run -w @ticket/desktop dev",
     "dev:desktop": "npm run -w @ticket/desktop dev",
-    "infra:up": "docker compose up -d postgres minio mailhog",
-    "infra:down": "docker compose down",
-    "db:migrate": "npm run -w @ticket/api db:migrate",
-    "db:seed": "npm run -w @ticket/api db:seed",
-    "db:reset": "npm run -w @ticket/api db:reset",
+    "pack:mac": "npm run -w @ticket/desktop pack:mac",
+    "pack:win": "npm run -w @ticket/desktop pack:win",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"

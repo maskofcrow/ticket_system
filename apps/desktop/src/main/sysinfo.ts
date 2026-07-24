@@ -1,7 +1,7 @@
 import { hostname, totalmem, networkInterfaces } from 'node:os';
 import { app } from 'electron';
 import si from 'systeminformation';
-import type { DeviceInfo } from '@ticket/shared';
+import type { CihazBilgisi } from '../shared/sozlesme.js';
 
 /**
  * Ticket açılırken toplanan makine bilgisi. Kullanıcıya ne gönderileceği
@@ -11,7 +11,7 @@ import type { DeviceInfo } from '@ticket/shared';
  * çalışan süreçler, seri numarası. Destek için gerekmiyorlar ve gereksiz
  * kişisel veri toplamak istemiyoruz.
  */
-export async function collectDeviceInfo(): Promise<DeviceInfo> {
+export async function collectDeviceInfo(): Promise<CihazBilgisi> {
   const [os, cpu, disks] = await Promise.all([
     si.osInfo().catch(() => null),
     si.cpu().catch(() => null),
@@ -23,14 +23,15 @@ export async function collectDeviceInfo(): Promise<DeviceInfo> {
     disks.find((d) => d.mount === '/' || d.mount === 'C:') ??
     disks.sort((a, b) => b.size - a.size)[0];
 
+  // Alan adları CRM'in cihazBilgisiSema'sıyla birebir aynı olmalı.
   return {
-    os: os ? `${os.distro} ${os.release}`.trim() : process.platform,
-    hostname: hostname(),
-    cpu: cpu ? `${cpu.manufacturer} ${cpu.brand}`.trim() : 'bilinmiyor',
-    totalMemMb: Math.round(totalmem() / 1024 / 1024),
-    freeDiskGb: systemDisk ? Math.round(systemDisk.available / 1024 ** 3) : 0,
-    localIp: firstLocalIp(),
-    appVersion: app.getVersion(),
+    isletimSistemi: os ? `${os.distro} ${os.release}`.trim() : process.platform,
+    bilgisayarAdi: hostname(),
+    islemci: cpu ? `${cpu.manufacturer} ${cpu.brand}`.trim() : 'bilinmiyor',
+    toplamBellekMb: Math.round(totalmem() / 1024 / 1024),
+    bosDiskGb: systemDisk ? Math.round(systemDisk.available / 1024 ** 3) : 0,
+    yerelIp: firstLocalIp(),
+    uygulamaSurumu: app.getVersion(),
   };
 }
 

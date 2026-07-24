@@ -1,29 +1,29 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  CLOSED_STATUSES,
-  TICKET_STATUS_LABELS,
-  type Priority,
-  type TicketStatus,
-  type TicketSummary,
-} from '@ticket/shared';
-import { apiFetch } from '../lib/api';
+  KAPALI_DURUMLAR,
+  DURUM_ETIKET,
+  type TalepOnceligi,
+  type TalepDurumu,
+  type TalepOzeti,
+} from '../../../shared/sozlesme.js';
+import { api } from '../lib/api';
 import { clearBadge } from '../lib/notifications';
 import { Button, Card, Spinner } from '../components/ui';
 
-const STATUS_DOT: Record<TicketStatus, string> = {
-  OPEN: 'bg-blue-500',
-  IN_PROGRESS: 'bg-amber-500',
-  WAITING_CUSTOMER: 'bg-purple-500',
-  RESOLVED: 'bg-emerald-500',
-  CLOSED: 'bg-slate-400',
+const DURUM_NOKTA: Record<TalepDurumu, string> = {
+  ACIK: 'bg-blue-500',
+  ISLEMDE: 'bg-amber-500',
+  MUSTERI_BEKLENIYOR: 'bg-purple-500',
+  COZULDU: 'bg-emerald-500',
+  KAPALI: 'bg-slate-400',
 };
 
-const PRIORITY_TEXT: Record<Priority, string> = {
-  LOW: 'text-slate-500',
+const ONCELIK_RENK: Record<TalepOnceligi, string> = {
+  DUSUK: 'text-slate-500',
   NORMAL: 'text-slate-500',
-  HIGH: 'text-orange-600',
-  URGENT: 'text-red-600 font-medium',
+  YUKSEK: 'text-orange-600',
+  ACIL: 'text-red-600 font-medium',
 };
 
 export function TicketListScreen({
@@ -33,17 +33,18 @@ export function TicketListScreen({
   onOpen: (id: string) => void;
   onNew: () => void;
 }) {
-  const tickets = useQuery({
-    queryKey: ['tickets'],
-    queryFn: () => apiFetch<{ items: TicketSummary[] }>('/tickets', { query: { limit: 50 } }),
+  // queryKey'ler notifications.ts'teki invalidate çağrılarıyla aynı olmalı.
+  const talepler = useQuery({
+    queryKey: ['talepler'],
+    queryFn: () => api.talepler(),
   });
 
   // Liste görüntülenince okunmamış rozeti sıfırlanır.
   useEffect(() => clearBadge(), []);
 
-  const items = tickets.data?.items ?? [];
-  const active = items.filter((t) => !CLOSED_STATUSES.includes(t.status));
-  const closed = items.filter((t) => CLOSED_STATUSES.includes(t.status));
+  const kayitlar = talepler.data ?? [];
+  const acik = kayitlar.filter((t) => !KAPALI_DURUMLAR.includes(t.durum));
+  const kapali = kayitlar.filter((t) => KAPALI_DURUMLAR.includes(t.durum));
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-6">
@@ -52,9 +53,9 @@ export function TicketListScreen({
         <Button onClick={onNew}>+ Yeni talep</Button>
       </div>
 
-      {tickets.isLoading ? (
+      {talepler.isLoading ? (
         <Spinner />
-      ) : items.length === 0 ? (
+      ) : kayitlar.length === 0 ? (
         <Card className="px-6 py-16 text-center">
           <p className="text-sm font-medium text-slate-900">Henüz talebiniz yok</p>
           <p className="mt-1 mb-5 text-sm text-slate-500">
@@ -64,9 +65,9 @@ export function TicketListScreen({
         </Card>
       ) : (
         <>
-          <TicketGroup title="Açık talepler" tickets={active} onOpen={onOpen} />
-          {closed.length > 0 && (
-            <TicketGroup title="Kapanmış talepler" tickets={closed} onOpen={onOpen} muted />
+          <TalepGrubu baslik="Açık talepler" talepler={acik} onOpen={onOpen} />
+          {kapali.length > 0 && (
+            <TalepGrubu baslik="Kapanmış talepler" talepler={kapali} onOpen={onOpen} soluk />
           )}
         </>
       )}
@@ -74,43 +75,43 @@ export function TicketListScreen({
   );
 }
 
-function TicketGroup({
-  title,
-  tickets,
+function TalepGrubu({
+  baslik,
+  talepler,
   onOpen,
-  muted = false,
+  soluk = false,
 }: {
-  title: string;
-  tickets: TicketSummary[];
+  baslik: string;
+  talepler: TalepOzeti[];
   onOpen: (id: string) => void;
-  muted?: boolean;
+  soluk?: boolean;
 }) {
-  if (tickets.length === 0) return null;
+  if (talepler.length === 0) return null;
 
   return (
     <section>
-      <h2 className="mb-2 text-xs font-medium tracking-wide text-slate-500 uppercase">{title}</h2>
-      <Card className={muted ? 'opacity-70' : ''}>
+      <h2 className="mb-2 text-xs font-medium tracking-wide text-slate-500 uppercase">{baslik}</h2>
+      <Card className={soluk ? 'opacity-70' : ''}>
         <ul className="divide-y divide-slate-100">
-          {tickets.map((ticket) => (
-            <li key={ticket.id}>
+          {talepler.map((talep) => (
+            <li key={talep.id}>
               <button
-                onClick={() => onOpen(ticket.id)}
+                onClick={() => onOpen(talep.id)}
                 className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
               >
-                <span className={`size-2 shrink-0 rounded-full ${STATUS_DOT[ticket.status]}`} />
+                <span className={`size-2 shrink-0 rounded-full ${DURUM_NOKTA[talep.durum]}`} />
 
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-900">{ticket.title}</p>
+                  <p className="truncate text-sm font-medium text-slate-900">{talep.baslik}</p>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    #{ticket.number} · {TICKET_STATUS_LABELS[ticket.status]}
-                    {ticket.commentCount > 0 && ` · ${ticket.commentCount} yanıt`}
-                    {ticket.assignedTo && ` · ${ticket.assignedTo.name}`}
+                    #{talep.numara} · {DURUM_ETIKET[talep.durum]}
+                    {talep.mesajSayisi > 0 && ` · ${talep.mesajSayisi} mesaj`}
+                    {talep.atanan && ` · ${talep.atanan.ad}`}
                   </p>
                 </div>
 
-                <span className={`shrink-0 text-xs ${PRIORITY_TEXT[ticket.priority]}`}>
-                  {ticket.priority === 'URGENT' ? 'Acil' : ticket.priority === 'HIGH' ? 'Yüksek' : ''}
+                <span className={`shrink-0 text-xs ${ONCELIK_RENK[talep.oncelik]}`}>
+                  {talep.oncelik === 'ACIL' ? 'Acil' : talep.oncelik === 'YUKSEK' ? 'Yüksek' : ''}
                 </span>
               </button>
             </li>

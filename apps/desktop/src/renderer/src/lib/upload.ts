@@ -1,28 +1,29 @@
-import type { AttachmentRef, PresignResponse } from '@ticket/shared';
-import { apiFetch, ApiError } from './api';
+import type { EkReferansi } from '../../../shared/sozlesme.js';
+import { api, ApiHatasi } from './api';
 
 /**
  * Dosya API üzerinden geçmez: önce imzalı adres alınır, dosya doğrudan
  * depolama servisine PUT edilir, sonra sadece anahtar ticket'a bağlanır.
  * Büyük ekran görüntüleri API sürecini meşgul etmesin diye.
  */
-export async function uploadFile(file: File | Blob, filename: string): Promise<AttachmentRef> {
-  const presign = await apiFetch<PresignResponse>('/uploads/presign', {
-    method: 'POST',
-    body: { filename, mimeType: file.type, size: file.size },
+export async function uploadFile(file: File | Blob, filename: string): Promise<EkReferansi> {
+  const izin = await api.yuklemeIzni({
+    dosyaAdi: filename,
+    mimeTipi: file.type,
+    boyut: file.size,
   });
 
-  const put = await fetch(presign.uploadUrl, {
+  const put = await fetch(izin.yuklemeAdresi, {
     method: 'PUT',
     headers: { 'content-type': file.type },
     body: file,
   });
 
   if (!put.ok) {
-    throw new ApiError(put.status, 'UPLOAD_FAILED', `"${filename}" yüklenemedi`);
+    throw new ApiHatasi(put.status, 'YUKLEME_BASARISIZ', `"${filename}" yüklenemedi`);
   }
 
-  return { storageKey: presign.storageKey, filename };
+  return { depoAnahtari: izin.depoAnahtari, dosyaAdi: filename };
 }
 
 /** Ana süreçten gelen data: URI'yi yüklenebilir bir Blob'a çevirir. */

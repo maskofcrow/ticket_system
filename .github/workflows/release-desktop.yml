@@ -31,9 +31,6 @@ jobs:
 
       - run: npm ci
 
-      - name: Ortak paketi derle
-        run: npm run build:shared
-
       - name: Uygulamayı paketle
         run: npm run --workspace @ticket/desktop pack:${{ matrix.platform }}
         env:

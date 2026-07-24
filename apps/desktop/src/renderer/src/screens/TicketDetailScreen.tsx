@@ -1,55 +1,53 @@
 import { useState, type ClipboardEvent, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  CLOSED_STATUSES,
-  TICKET_STATUS_LABELS,
-  type AttachmentRef,
-  type TicketDetail,
-} from '@ticket/shared';
-import { apiFetch, ApiError } from '../lib/api';
+  KAPALI_DURUMLAR,
+  DURUM_ETIKET,
+  type Ek,
+  type EkReferansi,
+} from '../../../shared/sozlesme.js';
+import { api, ApiHatasi } from '../lib/api';
 import { screenshotFilename, uploadFile } from '../lib/upload';
 import { Button, Card, ErrorBanner, Spinner, Textarea } from '../components/ui';
 
 export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onBack: () => void }) {
   const qc = useQueryClient();
-  const ticket = useQuery({
-    queryKey: ['ticket', ticketId],
-    queryFn: () => apiFetch<TicketDetail>(`/tickets/${ticketId}`),
+  const talep = useQuery({
+    queryKey: ['talep', ticketId],
+    queryFn: () => api.talep(ticketId),
   });
 
-  const [body, setBody] = useState('');
-  const [pending, setPending] = useState<{ id: string; blob: Blob; previewUrl: string }[]>([]);
+  const [icerik, setIcerik] = useState('');
+  const [bekleyen, setBekleyen] = useState<{ id: string; blob: Blob; previewUrl: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const reply = useMutation({
+  const yanitla = useMutation({
     mutationFn: async () => {
-      const uploaded: AttachmentRef[] = [];
-      for (const item of pending) {
-        uploaded.push(await uploadFile(item.blob, screenshotFilename()));
+      const yuklenen: EkReferansi[] = [];
+      for (const ogeler of bekleyen) {
+        yuklenen.push(await uploadFile(ogeler.blob, screenshotFilename()));
       }
-      return apiFetch(`/tickets/${ticketId}/comments`, {
-        method: 'POST',
-        body: { body: body.trim(), attachments: uploaded },
-      });
+      return api.mesajYaz(ticketId, { icerik: icerik.trim(), ekler: yuklenen });
     },
     onSuccess: () => {
-      setBody('');
-      setPending([]);
-      void qc.invalidateQueries({ queryKey: ['ticket', ticketId] });
-      void qc.invalidateQueries({ queryKey: ['tickets'] });
+      setIcerik('');
+      setBekleyen([]);
+      void qc.invalidateQueries({ queryKey: ['talep', ticketId] });
+      void qc.invalidateQueries({ queryKey: ['talepler'] });
     },
   });
 
-  const close = useMutation({
-    mutationFn: () => apiFetch(`/tickets/${ticketId}`, { method: 'PATCH', body: { status: 'CLOSED' } }),
+  // Müşterinin değiştirebildiği tek durum: kapatma (sunucu diğerlerine 403 döner).
+  const kapat = useMutation({
+    mutationFn: () => api.talebiKapat(ticketId),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['ticket', ticketId] });
-      void qc.invalidateQueries({ queryKey: ['tickets'] });
+      void qc.invalidateQueries({ queryKey: ['talep', ticketId] });
+      void qc.invalidateQueries({ queryKey: ['talepler'] });
     },
   });
 
-  if (ticket.isLoading) return <Spinner />;
-  if (!ticket.data) {
+  if (talep.isLoading) return <Spinner />;
+  if (!talep.data) {
     return (
       <div className="p-6">
         <ErrorBanner message="Talep yüklenemedi." />
@@ -60,16 +58,16 @@ export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onB
     );
   }
 
-  const t = ticket.data;
-  const isClosed = CLOSED_STATUSES.includes(t.status);
+  const t = talep.data;
+  const kapaliMi = KAPALI_DURUMLAR.includes(t.durum);
 
   function handlePaste(event: ClipboardEvent): void {
-    const file = Array.from(event.clipboardData.files).find((f) => f.type.startsWith('image/'));
-    if (!file) return;
+    const dosya = Array.from(event.clipboardData.files).find((f) => f.type.startsWith('image/'));
+    if (!dosya) return;
     event.preventDefault();
-    setPending((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), blob: file, previewUrl: URL.createObjectURL(file) },
+    setBekleyen((onceki) => [
+      ...onceki,
+      { id: crypto.randomUUID(), blob: dosya, previewUrl: URL.createObjectURL(dosya) },
     ]);
   }
 
@@ -77,9 +75,9 @@ export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onB
     event.preventDefault();
     setError(null);
     try {
-      await reply.mutateAsync();
+      await yanitla.mutateAsync();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Mesaj gönderilemedi');
+      setError(err instanceof ApiHatasi ? err.message : 'Mesaj gönderilemedi');
     }
   }
 
@@ -91,43 +89,43 @@ export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onB
 
       <Card className="p-5">
         <div className="mb-2 flex items-center gap-2 text-xs text-slate-500">
-          <span>#{t.number}</span>
+          <span>#{t.numara}</span>
           <span>·</span>
-          <span className="font-medium text-slate-700">{TICKET_STATUS_LABELS[t.status]}</span>
-          {t.assignedTo && (
+          <span className="font-medium text-slate-700">{DURUM_ETIKET[t.durum]}</span>
+          {t.atanan && (
             <>
               <span>·</span>
-              <span>İlgilenen: {t.assignedTo.name}</span>
+              <span>İlgilenen: {t.atanan.ad}</span>
             </>
           )}
         </div>
 
-        <h1 className="text-lg font-semibold text-slate-900">{t.title}</h1>
-        <p className="prose-plain mt-3 text-sm text-slate-700">{t.body}</p>
-        {t.attachments.length > 0 && <Attachments items={t.attachments} />}
+        <h1 className="text-lg font-semibold text-slate-900">{t.baslik}</h1>
+        <p className="prose-plain mt-3 text-sm text-slate-700">{t.aciklama}</p>
+        {t.ekler.length > 0 && <Ekler ogeler={t.ekler} />}
       </Card>
 
-      {t.comments.map((comment) => {
-        const fromSupport = comment.author.role !== 'CUSTOMER';
+      {t.mesajlar.map((mesaj) => {
+        const destekten = mesaj.yazar.tip === 'PERSONEL';
         return (
           <Card
-            key={comment.id}
-            className={`p-4 ${fromSupport ? 'border-l-4 border-l-blue-500' : 'ml-8'}`}
+            key={mesaj.id}
+            className={`p-4 ${destekten ? 'border-l-4 border-l-blue-500' : 'ml-8'}`}
           >
             <p className="mb-1.5 text-xs">
-              <span className="font-medium text-slate-900">{comment.author.name}</span>
-              <span className="text-slate-500"> · {fromSupport ? 'Destek ekibi' : 'siz'}</span>
+              <span className="font-medium text-slate-900">{mesaj.yazar.ad}</span>
+              <span className="text-slate-500"> · {destekten ? 'Destek ekibi' : 'siz'}</span>
             </p>
-            <p className="prose-plain text-sm text-slate-700">{comment.body}</p>
-            {comment.attachments.length > 0 && <Attachments items={comment.attachments} />}
+            <p className="prose-plain text-sm text-slate-700">{mesaj.icerik}</p>
+            {mesaj.ekler.length > 0 && <Ekler ogeler={mesaj.ekler} />}
           </Card>
         );
       })}
 
-      {isClosed ? (
+      {kapaliMi ? (
         <Card className="p-4 text-center">
           <p className="text-sm text-slate-600">
-            Bu talep {TICKET_STATUS_LABELS[t.status].toLocaleLowerCase('tr')} durumda.
+            Bu talep {DURUM_ETIKET[t.durum].toLocaleLowerCase('tr')} durumda.
           </p>
           <p className="mt-1 text-xs text-slate-500">
             Sorun devam ediyorsa aşağıya yazın; talep otomatik olarak yeniden açılır.
@@ -141,24 +139,24 @@ export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onB
 
           <Textarea
             rows={4}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
+            value={icerik}
+            onChange={(e) => setIcerik(e.target.value)}
             onPaste={handlePaste}
             placeholder="Mesajınızı yazın… (ekran görüntüsünü buraya yapıştırabilirsiniz)"
           />
 
-          {pending.length > 0 && (
+          {bekleyen.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {pending.map((item) => (
-                <div key={item.id} className="relative">
+              {bekleyen.map((oge) => (
+                <div key={oge.id} className="relative">
                   <img
-                    src={item.previewUrl}
+                    src={oge.previewUrl}
                     alt="ek"
                     className="h-16 w-24 rounded object-cover ring-1 ring-slate-200"
                   />
                   <button
                     type="button"
-                    onClick={() => setPending((prev) => prev.filter((p) => p.id !== item.id))}
+                    onClick={() => setBekleyen((onceki) => onceki.filter((p) => p.id !== oge.id))}
                     className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center
                                rounded-full bg-slate-900 text-xs text-white"
                     aria-label="Eki kaldır"
@@ -171,12 +169,12 @@ export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onB
           )}
 
           <div className="flex items-center justify-between">
-            {!isClosed && t.status === 'RESOLVED' ? (
+            {!kapaliMi && t.durum === 'COZULDU' ? (
               <Button
                 variant="secondary"
                 type="button"
-                onClick={() => close.mutate()}
-                disabled={close.isPending}
+                onClick={() => kapat.mutate()}
+                disabled={kapat.isPending}
               >
                 Sorunum çözüldü, kapat
               </Button>
@@ -184,8 +182,8 @@ export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onB
               <span />
             )}
 
-            <Button type="submit" disabled={reply.isPending || !body.trim()}>
-              {reply.isPending ? 'Gönderiliyor…' : 'Gönder'}
+            <Button type="submit" disabled={yanitla.isPending || !icerik.trim()}>
+              {yanitla.isPending ? 'Gönderiliyor…' : 'Gönder'}
             </Button>
           </div>
         </form>
@@ -194,32 +192,28 @@ export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onB
   );
 }
 
-function Attachments({
-  items,
-}: {
-  items: { id: string; filename: string; mimeType: string; downloadUrl: string }[];
-}) {
+function Ekler({ ogeler }: { ogeler: Ek[] }) {
   return (
     <div className="mt-3 flex flex-wrap gap-2">
-      {items.map((file) =>
-        file.mimeType.startsWith('image/') ? (
-          <a key={file.id} href={file.downloadUrl} target="_blank" rel="noreferrer">
+      {ogeler.map((dosya) =>
+        dosya.mimeTipi.startsWith('image/') ? (
+          <a key={dosya.id} href={dosya.indirmeAdresi} target="_blank" rel="noreferrer">
             <img
-              src={file.downloadUrl}
-              alt={file.filename}
+              src={dosya.indirmeAdresi}
+              alt={dosya.dosyaAdi}
               className="h-24 rounded-md object-cover ring-1 ring-slate-200"
             />
           </a>
         ) : (
           <a
-            key={file.id}
-            href={file.downloadUrl}
+            key={dosya.id}
+            href={dosya.indirmeAdresi}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 rounded-md bg-slate-50 px-2.5 py-1.5 text-xs
                        text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-100"
           >
-            📎 <span className="max-w-48 truncate">{file.filename}</span>
+            📎 <span className="max-w-48 truncate">{dosya.dosyaAdi}</span>
           </a>
         ),
       )}

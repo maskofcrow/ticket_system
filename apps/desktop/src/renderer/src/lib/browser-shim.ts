@@ -23,18 +23,19 @@ export function installBrowserShim(): void {
       },
     },
     config: {
-      getApiUrl: async () => localStorage.getItem('shim.apiUrl') ?? 'http://localhost:3000',
+      getApiUrl: async () =>
+        localStorage.getItem('shim.apiUrl') ?? 'https://crm.estabilisim.com',
       setApiUrl: async (url) => localStorage.setItem('shim.apiUrl', url),
     },
     device: {
       collect: async () => ({
-        os: `${navigator.platform} (tarayıcı)`,
-        hostname: 'tarayici-onizleme',
-        cpu: 'bilinmiyor',
-        totalMemMb: 0,
-        freeDiskGb: 0,
-        localIp: null,
-        appVersion: '0.0.0-dev',
+        isletimSistemi: `${navigator.platform} (tarayıcı)`,
+        bilgisayarAdi: 'tarayici-onizleme',
+        islemci: 'bilinmiyor',
+        toplamBellekMb: 0,
+        bosDiskGb: 0,
+        yerelIp: null,
+        uygulamaSurumu: '0.0.0-dev',
       }),
       getSharePreference: async () => true,
       setSharePreference: async () => undefined,

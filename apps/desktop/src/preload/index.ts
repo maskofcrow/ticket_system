@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { DeviceInfo } from '@ticket/shared';
+import type { CihazBilgisi } from '../shared/sozlesme.js';
 
 export interface CapturedImage {
   dataUrl: string;
@@ -22,7 +22,7 @@ const api = {
     setApiUrl: (url: string): Promise<void> => ipcRenderer.invoke('config:setApiUrl', url),
   },
   device: {
-    collect: (): Promise<DeviceInfo> => ipcRenderer.invoke('device:collect'),
+    collect: (): Promise<CihazBilgisi> => ipcRenderer.invoke('device:collect'),
     getSharePreference: (): Promise<boolean> => ipcRenderer.invoke('device:getSharePreference'),
     setSharePreference: (value: boolean): Promise<void> =>
       ipcRenderer.invoke('device:setSharePreference', value),

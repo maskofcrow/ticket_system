@@ -17,13 +17,13 @@ const queryClient = new QueryClient({
 type View = { name: 'list' } | { name: 'new' } | { name: 'detail'; ticketId: string };
 
 function Shell() {
-  const { user, loading, logout } = useSession();
+  const { kullanici, yukleniyor, cikis } = useSession();
   const [view, setView] = useState<View>({ name: 'list' });
 
-  useLiveUpdates(Boolean(user), user?.id);
+  useLiveUpdates(Boolean(kullanici), kullanici?.id);
 
-  if (loading) return <Spinner />;
-  if (!user) return <WelcomeScreen />;
+  if (yukleniyor) return <Spinner />;
+  if (!kullanici) return <WelcomeScreen />;
 
   return (
     <div className="flex h-full flex-col">
@@ -32,10 +32,10 @@ function Shell() {
                    bg-white px-4 pl-20"
       >
         <span className="text-sm font-semibold text-slate-900">IT Destek</span>
-        <span className="text-xs text-slate-500">{user.orgName}</span>
+        <span className="text-xs text-slate-500">{kullanici.firmaAdi}</span>
         <div className="ml-auto flex items-center gap-3">
-          <span className="text-xs text-slate-600">{user.name}</span>
-          <Button variant="ghost" onClick={() => void logout()}>
+          <span className="text-xs text-slate-600">{kullanici.ad}</span>
+          <Button variant="ghost" onClick={() => void cikis()}>
             Çıkış
           </Button>
         </div>
