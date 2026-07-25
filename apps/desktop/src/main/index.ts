@@ -12,7 +12,12 @@ import {
   setShareDeviceInfo,
 } from './store.js';
 
-const DEFAULT_API_URL = process.env.VITE_API_URL ?? 'http://localhost:3000';
+// Müşteri PC'lerine kurulan paket doğrudan canlı sunucuya bağlanmalı. Geliştirmede
+// yerel sunucuyu kullanmak için build sırasında VITE_API_URL verilebilir.
+// (Kullanıcı "Sunucu ayarları"ndan değiştirirse o değer kalıcı olarak öne geçer.)
+const DEFAULT_API_URL =
+  process.env.VITE_API_URL ??
+  (app.isPackaged ? 'https://crm.estabilisim.com' : 'http://localhost:3000');
 const isDev = !app.isPackaged;
 
 let mainWindow: BrowserWindow | null = null;
