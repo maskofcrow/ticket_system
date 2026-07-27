@@ -79,6 +79,22 @@ export function useLiveUpdates(etkin: boolean, kullaniciId: string | undefined):
           break;
         }
 
+        case 'firma:mesaj': {
+          // Ekip sohbetini tazele; açıksa mesaj anında görünür.
+          void qc.invalidateQueries({ queryKey: ['ekip', 'mesajlar'] });
+
+          // Kendi yazdığımız mesaj için bildirim gösterme.
+          if (olay.mesaj.yazar.id === kullaniciId) return;
+
+          okunmamis += 1;
+          void window.desktop.app.setBadge(okunmamis);
+          void window.desktop.notify(
+            `Ekip — ${olay.mesaj.yazar.ad}`,
+            olay.mesaj.icerik.slice(0, 120),
+          );
+          break;
+        }
+
         default:
           // 'baglandi' ve ileride eklenecek olaylar sessizce yok sayılır.
           break;

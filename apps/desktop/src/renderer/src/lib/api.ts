@@ -1,4 +1,6 @@
 import type {
+  EkipUyesi,
+  FirmaMesaji,
   HataCevabi,
   KimlikCevabi,
   Kategori,
@@ -240,4 +242,15 @@ export const api = {
 
   yuklemeIzni: (govde: YuklemeIzniIstegi) =>
     apiFetch<YuklemeIzniCevabi>('/yukleme', { method: 'POST', body: govde }),
+
+  // ── Firma-içi ekip / workspace ──────────────────────────────────────────────
+
+  ekipUyeleri: () =>
+    apiFetch<ListeCevabi<EkipUyesi>>('/ekip').then((c) => c.kayitlar),
+
+  ekipMesajlari: () =>
+    apiFetch<ListeCevabi<FirmaMesaji>>('/ekip/mesajlar').then((c) => c.kayitlar),
+
+  ekipMesajGonder: (icerik: string) =>
+    apiFetch<FirmaMesaji>('/ekip/mesajlar', { method: 'POST', body: { icerik } }),
 };

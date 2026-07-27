@@ -196,6 +196,24 @@ export interface YuklemeIzniCevabi {
   depoAnahtari: string;
 }
 
+// ── Firma-içi ekip / workspace ────────────────────────────────────────────────
+
+export interface EkipUyesi {
+  id: string;
+  ad: string;
+  eposta: string;
+  sonGorulme: string | null;
+  /** Bu üye, oturum açan kullanıcının kendisi mi? */
+  ben: boolean;
+}
+
+export interface FirmaMesaji {
+  id: string;
+  icerik: string;
+  yazar: { id: string; ad: string };
+  createdAt: string;
+}
+
 // ── Zarflar ve hatalar ───────────────────────────────────────────────────────
 
 /** Liste uçları `{ kayitlar: [...] }` döner. */
@@ -233,4 +251,9 @@ export type TalepOlayi =
       talepNumara: number;
       talepBaslik: string;
       mesaj: { id: string; icerik: string; icNot: boolean; yazarTipi: YazarTipi };
+    }
+  | {
+      tur: 'firma:mesaj';
+      customerId: string;
+      mesaj: FirmaMesaji;
     };
