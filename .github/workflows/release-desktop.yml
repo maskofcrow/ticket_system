@@ -34,8 +34,8 @@ jobs:
       - name: Uygulamayı paketle
         run: npm run --workspace @ticket/desktop pack:${{ matrix.platform }}
         env:
-          # Otomatik güncelleme akışının adresi (kendi sunucunuz).
-          UPDATE_FEED_URL: ${{ vars.UPDATE_FEED_URL }}
+          # Güncelleme feed adresi artık electron-builder.yml'de gömülü;
+          # ortam değişkeni gerekmiyor.
 
           # ── İmzalama ───────────────────────────────────────────────────────
           # Bu secret'lar tanımlı değilse build imzasız tamamlanır; sertifikalar
@@ -60,6 +60,7 @@ jobs:
           # dosyalarıyla birlikte /updates dizinine konmalı.
           path: |
             apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
             apps/desktop/release/*.exe
             apps/desktop/release/*.blockmap
             apps/desktop/release/latest*.yml

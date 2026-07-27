@@ -139,8 +139,8 @@ function registerIpc(): void {
 function setupAutoUpdater(): void {
   if (isDev) return;
 
-  // Güncelleme akışı kendi sunucumuzdan servis ediliyor (Caddy /updates),
-  // GitHub Releases'e bağımlı kalmıyoruz — kurulum tamamen self-hosted.
+  // Güncelleme akışı kendi sunucumuzdan servis ediliyor (nginx → /updates/);
+  // feed adresi electron-builder.yml'de gömülü. Kurulum tamamen self-hosted.
   autoUpdater.logger = null;
   autoUpdater.autoDownload = true;
 

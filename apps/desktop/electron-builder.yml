@@ -19,6 +19,10 @@ mac:
   target:
     - target: dmg
       arch: [arm64, x64]
+    # Otomatik güncelleme dmg'yi değil zip'i indirir; ikisi de üretilmeli.
+    # (Not: imzasız mac uygulamasında auto-update tam çalışmaz — sertifika şart.)
+    - target: zip
+      arch: [arm64, x64]
   # Ekran görüntüsü alabilmek için gereken izin açıklaması; macOS bu metni
   # kullanıcıya izin isterken gösterir.
   extendInfo:
@@ -66,9 +70,11 @@ nsis:
   runAfterFinish: true
 
 # ── Otomatik güncelleme ──────────────────────────────────────────────────────
-# Kendi sunucumuzdan servis ediliyor (Caddy /updates dizini). UPDATE_FEED_URL
-# ortam değişkeni ile build sırasında değiştirilebilir.
+# Güncellemeler kendi sunucumuzdan servis ediliyor (nginx → /updates/). Adres
+# gizli değil, doğrudan gömülü: boş bir ortam değişkeninin auto-update'i sessizce
+# kırması riskini ortadan kaldırır. Sunucu bu dizini public GitHub Release'lerden
+# kendi doldurur (bkz. sunucudaki it-destek-updates/pull.sh + cron).
 publish:
   provider: generic
-  url: ${env.UPDATE_FEED_URL}
+  url: https://crm.estabilisim.com/updates/
   channel: latest
