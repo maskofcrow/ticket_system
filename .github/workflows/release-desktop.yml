@@ -21,6 +21,11 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    # mac paketleme imzasız/dmg tarafında kırılgan ve mac auto-update zaten
+    # sertifika gerektiriyor. Windows asıl hedef; mac ayağı patlarsa yayını
+    # engellemesin (best-effort).
+    continue-on-error: ${{ matrix.platform == 'mac' }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -69,7 +74,9 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    # mac ayağı patlasa bile (best-effort) yayın yapılmalı: Windows kurulumu ve
+    # latest.yml hazırsa Release oluşsun. Bir tag itildiğinde her hâlükârda çalış.
+    if: ${{ always() && startsWith(github.ref, 'refs/tags/') }}
     permissions:
       contents: write
 
