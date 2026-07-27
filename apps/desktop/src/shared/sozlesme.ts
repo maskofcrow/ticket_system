@@ -205,13 +205,26 @@ export interface EkipUyesi {
   sonGorulme: string | null;
   /** Bu üye, oturum açan kullanıcının kendisi mi? */
   ben: boolean;
+  /** Bu kişiden gelip henüz okunmamış mesaj sayısı (rozet). */
+  okunmamis: number;
 }
 
+/** Kişi-kişi (DM) mesajı. `icerik` boşsa mesaj yalnızca ek içerir. */
 export interface FirmaMesaji {
   id: string;
+  gonderenId: string;
+  aliciId: string;
+  gonderen: { id: string; ad: string };
   icerik: string;
-  yazar: { id: string; ad: string };
+  okundu: boolean;
+  ekler: Ek[];
   createdAt: string;
+}
+
+export interface FirmaMesajGonderIstegi {
+  aliciId: string;
+  icerik?: string;
+  ekler?: EkReferansi[];
 }
 
 // ── Zarflar ve hatalar ───────────────────────────────────────────────────────
@@ -255,5 +268,7 @@ export type TalepOlayi =
   | {
       tur: 'firma:mesaj';
       customerId: string;
+      gonderenId: string;
+      aliciId: string;
       mesaj: FirmaMesaji;
     };

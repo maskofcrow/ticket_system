@@ -80,18 +80,19 @@ export function useLiveUpdates(etkin: boolean, kullaniciId: string | undefined):
         }
 
         case 'firma:mesaj': {
-          // Ekip sohbetini tazele; açıksa mesaj anında görünür.
-          void qc.invalidateQueries({ queryKey: ['ekip', 'mesajlar'] });
+          // Açık konuşmayı ve üye listesindeki okunmamış rozetini tazele.
+          void qc.invalidateQueries({ queryKey: ['ekip'] });
 
-          // Kendi yazdığımız mesaj için bildirim gösterme.
-          if (olay.mesaj.yazar.id === kullaniciId) return;
+          // Bildirim yalnızca bana gelen mesaj için (kendi yazdığım değil).
+          if (olay.aliciId !== kullaniciId) return;
+
+          const onizleme =
+            olay.mesaj.icerik.trim() ||
+            (olay.mesaj.ekler.length > 0 ? '📎 Dosya gönderdi' : '');
 
           okunmamis += 1;
           void window.desktop.app.setBadge(okunmamis);
-          void window.desktop.notify(
-            `Ekip — ${olay.mesaj.yazar.ad}`,
-            olay.mesaj.icerik.slice(0, 120),
-          );
+          void window.desktop.notify(`Ekip — ${olay.mesaj.gonderen.ad}`, onizleme.slice(0, 120));
           break;
         }
 

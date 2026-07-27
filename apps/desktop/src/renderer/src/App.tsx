@@ -89,7 +89,7 @@ function Shell() {
           />
         )}
 
-        {view.name === 'ekip' && <EkipScreen />}
+        {view.name === 'ekip' && <EkipScreen benId={kullanici.id} />}
       </div>
     </div>
   );

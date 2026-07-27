@@ -1,6 +1,7 @@
 import type {
   EkipUyesi,
   FirmaMesaji,
+  FirmaMesajGonderIstegi,
   HataCevabi,
   KimlikCevabi,
   Kategori,
@@ -248,9 +249,12 @@ export const api = {
   ekipUyeleri: () =>
     apiFetch<ListeCevabi<EkipUyesi>>('/ekip').then((c) => c.kayitlar),
 
-  ekipMesajlari: () =>
-    apiFetch<ListeCevabi<FirmaMesaji>>('/ekip/mesajlar').then((c) => c.kayitlar),
+  /** Belirli bir kişiyle olan DM konuşması. */
+  ekipMesajlari: (kisiId: string) =>
+    apiFetch<ListeCevabi<FirmaMesaji>>('/ekip/mesajlar', { query: { kisi: kisiId } }).then(
+      (c) => c.kayitlar,
+    ),
 
-  ekipMesajGonder: (icerik: string) =>
-    apiFetch<FirmaMesaji>('/ekip/mesajlar', { method: 'POST', body: { icerik } }),
+  ekipMesajGonder: (govde: FirmaMesajGonderIstegi) =>
+    apiFetch<FirmaMesaji>('/ekip/mesajlar', { method: 'POST', body: govde }),
 };
