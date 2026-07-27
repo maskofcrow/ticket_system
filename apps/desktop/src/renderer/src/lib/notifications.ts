@@ -79,12 +79,19 @@ export function useLiveUpdates(etkin: boolean, kullaniciId: string | undefined):
           break;
         }
 
-        case 'firma:mesaj': {
-          // Açık konuşmayı ve üye listesindeki okunmamış rozetini tazele.
-          void qc.invalidateQueries({ queryKey: ['ekip'] });
+        case 'sohbet:guncellendi': {
+          // Yeni sohbet / gruba eklendik: sohbet listesini tazele.
+          void qc.invalidateQueries({ queryKey: ['sohbetler'] });
+          break;
+        }
 
-          // Bildirim yalnızca bana gelen mesaj için (kendi yazdığım değil).
-          if (olay.aliciId !== kullaniciId) return;
+        case 'sohbet:mesaj': {
+          // Sohbet listesini (son mesaj + rozet) ve açık konuşmayı tazele.
+          void qc.invalidateQueries({ queryKey: ['sohbetler'] });
+          void qc.invalidateQueries({ queryKey: ['sohbet', olay.sohbetId] });
+
+          // Kendi yazdığım mesaj için bildirim yok.
+          if (olay.mesaj.gonderen.id === kullaniciId) return;
 
           const onizleme =
             olay.mesaj.icerik.trim() ||

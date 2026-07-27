@@ -1,7 +1,9 @@
 import type {
   EkipUyesi,
-  FirmaMesaji,
-  FirmaMesajGonderIstegi,
+  SohbetOzeti,
+  SohbetMesaji,
+  SohbetOlusturIstegi,
+  SohbetMesajGonderIstegi,
   HataCevabi,
   KimlikCevabi,
   Kategori,
@@ -246,15 +248,34 @@ export const api = {
 
   // ── Firma-içi ekip / workspace ──────────────────────────────────────────────
 
+  /** Firma üyeleri (DM başlatmak / grup üyesi seçmek için). */
   ekipUyeleri: () =>
     apiFetch<ListeCevabi<EkipUyesi>>('/ekip').then((c) => c.kayitlar),
 
-  /** Belirli bir kişiyle olan DM konuşması. */
-  ekipMesajlari: (kisiId: string) =>
-    apiFetch<ListeCevabi<FirmaMesaji>>('/ekip/mesajlar', { query: { kisi: kisiId } }).then(
+  /** Kullanıcının tüm sohbetleri (DM + grup), son mesaja göre sıralı. */
+  sohbetler: () =>
+    apiFetch<ListeCevabi<SohbetOzeti>>('/ekip/sohbetler').then((c) => c.kayitlar),
+
+  /** DM aç (varsa mevcut) veya grup kur. Oluşan/bulunan sohbeti döner. */
+  sohbetOlustur: (govde: SohbetOlusturIstegi) =>
+    apiFetch<SohbetOzeti>('/ekip/sohbetler', { method: 'POST', body: govde }),
+
+  /** Bir sohbetin mesajları (açılınca okundu işaretlenir). */
+  sohbetMesajlari: (sohbetId: string) =>
+    apiFetch<ListeCevabi<SohbetMesaji>>(`/ekip/sohbetler/${sohbetId}/mesajlar`).then(
       (c) => c.kayitlar,
     ),
 
-  ekipMesajGonder: (govde: FirmaMesajGonderIstegi) =>
-    apiFetch<FirmaMesaji>('/ekip/mesajlar', { method: 'POST', body: govde }),
+  sohbetMesajGonder: (sohbetId: string, govde: SohbetMesajGonderIstegi) =>
+    apiFetch<SohbetMesaji>(`/ekip/sohbetler/${sohbetId}/mesajlar`, {
+      method: 'POST',
+      body: govde,
+    }),
+
+  /** Gruba üye ekle. */
+  sohbetUyeEkle: (sohbetId: string, uyeIds: string[]) =>
+    apiFetch<{ tamam: boolean }>(`/ekip/sohbetler/${sohbetId}/uyeler`, {
+      method: 'POST',
+      body: { uyeIds },
+    }),
 };

@@ -205,24 +205,42 @@ export interface EkipUyesi {
   sonGorulme: string | null;
   /** Bu üye, oturum açan kullanıcının kendisi mi? */
   ben: boolean;
-  /** Bu kişiden gelip henüz okunmamış mesaj sayısı (rozet). */
-  okunmamis: number;
 }
 
-/** Kişi-kişi (DM) mesajı. `icerik` boşsa mesaj yalnızca ek içerir. */
-export interface FirmaMesaji {
+export type SohbetTuru = 'DIREKT' | 'GRUP';
+
+/** Sohbet listesi öğesi (DM veya grup). */
+export interface SohbetOzeti {
   id: string;
-  gonderenId: string;
-  aliciId: string;
+  tur: SohbetTuru;
+  /** DM'de karşı kişinin adı, grupta grup adı. */
+  baslik: string;
+  uyeler: { id: string; ad: string }[];
+  sonMesaj: {
+    icerik: string;
+    gonderenAd: string;
+    ekVar: boolean;
+    createdAt: string;
+  } | null;
+  okunmamis: number;
+  sonMesajAt: string;
+}
+
+/** Sohbet mesajı. `icerik` boşsa mesaj yalnızca ek içerir. */
+export interface SohbetMesaji {
+  id: string;
+  sohbetId: string;
   gonderen: { id: string; ad: string };
   icerik: string;
-  okundu: boolean;
   ekler: Ek[];
   createdAt: string;
 }
 
-export interface FirmaMesajGonderIstegi {
-  aliciId: string;
+export type SohbetOlusturIstegi =
+  | { tur: 'DIREKT'; kisiId: string }
+  | { tur: 'GRUP'; ad: string; uyeIds: string[] };
+
+export interface SohbetMesajGonderIstegi {
   icerik?: string;
   ekler?: EkReferansi[];
 }
@@ -266,9 +284,15 @@ export type TalepOlayi =
       mesaj: { id: string; icerik: string; icNot: boolean; yazarTipi: YazarTipi };
     }
   | {
-      tur: 'firma:mesaj';
+      tur: 'sohbet:mesaj';
       customerId: string;
-      gonderenId: string;
-      aliciId: string;
-      mesaj: FirmaMesaji;
+      sohbetId: string;
+      uyeIds: string[];
+      mesaj: SohbetMesaji;
+    }
+  | {
+      tur: 'sohbet:guncellendi';
+      customerId: string;
+      sohbetId: string;
+      uyeIds: string[];
     };
