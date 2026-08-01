@@ -49,8 +49,9 @@ export function useLiveUpdates(etkin: boolean, kullaniciId: string | undefined):
           void qc.invalidateQueries({ queryKey: ['talepler'] });
           void qc.invalidateQueries({ queryKey: ['talep', olay.talepId] });
 
-          // Kendi yazdığımız mesaj için bildirim gösterme.
-          if (olay.mesaj.yazarTipi === 'MUSTERI') return;
+          // Kendi (müşteri) yazdığımız mesaj için bildirim gösterme. Sunucu
+          // mesajı `yazar.tip` ile gönderiyor (üst seviye `yazarTipi` yok).
+          if (olay.mesaj.yazar.tip === 'MUSTERI') return;
 
           okunmamis += 1;
           void window.desktop.app.setBadge(okunmamis);

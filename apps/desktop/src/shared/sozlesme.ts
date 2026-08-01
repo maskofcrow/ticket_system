@@ -281,7 +281,8 @@ export type TalepOlayi =
       talepId: string;
       talepNumara: number;
       talepBaslik: string;
-      mesaj: { id: string; icerik: string; icNot: boolean; yazarTipi: YazarTipi };
+      // Sunucu `mesajSun` çıktısını gönderir: yazar tipi `yazar.tip` altındadır.
+      mesaj: { id: string; icerik: string; icNot: boolean; yazar: { id: string; ad: string; tip: YazarTipi } };
     }
   | {
       tur: 'sohbet:mesaj';
