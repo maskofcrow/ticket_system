@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { CihazBilgisi } from '../shared/sozlesme.js';
+import type { CihazBilgisi, EnvanterBilgisi } from '../shared/sozlesme.js';
 
 export interface CapturedImage {
   dataUrl: string;
@@ -27,6 +27,11 @@ const api = {
     setSharePreference: (value: boolean): Promise<void> =>
       ipcRenderer.invoke('device:setSharePreference', value),
   },
+  inventory: {
+    collect: (): Promise<EnvanterBilgisi> => ipcRenderer.invoke('inventory:collect'),
+  },
+  /** Sunucudaki görseli data URL olarak getir (CORS/taint'siz düzenleme için). */
+  gorselGetir: (url: string): Promise<string | null> => ipcRenderer.invoke('image:fetch', url),
   screenshot: {
     capture: (): Promise<CapturedImage | { error: string }> =>
       ipcRenderer.invoke('screenshot:capture'),

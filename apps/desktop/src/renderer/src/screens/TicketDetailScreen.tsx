@@ -9,6 +9,7 @@ import {
 import { api, ApiHatasi } from '../lib/api';
 import { screenshotFilename, uploadFile } from '../lib/upload';
 import { Button, Card, ErrorBanner, Spinner, Textarea } from '../components/ui';
+import { GorselDuzenleyici } from '../components/GorselDuzenleyici';
 
 export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onBack: () => void }) {
   const qc = useQueryClient();
@@ -20,6 +21,31 @@ export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onB
   const [icerik, setIcerik] = useState('');
   const [bekleyen, setBekleyen] = useState<{ id: string; blob: Blob; previewUrl: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [duzenle, setDuzenle] = useState<string | null>(null); // data URL
+  const [duzenleGonderiliyor, setDuzenleGonderiliyor] = useState(false);
+
+  // Sunucudaki görseli ana süreçten alıp (taint'siz) düzenleyiciye ver.
+  async function duzenleyiciAc(indirmeAdresi: string): Promise<void> {
+    setError(null);
+    const dataUrl = await window.desktop.gorselGetir(indirmeAdresi);
+    if (dataUrl) setDuzenle(dataUrl);
+    else setError('Görsel düzenleyiciye yüklenemedi.');
+  }
+
+  async function duzenleneniGonder(blob: Blob): Promise<void> {
+    setDuzenleGonderiliyor(true);
+    try {
+      const ref = await uploadFile(blob, screenshotFilename());
+      await api.mesajYaz(ticketId, { icerik: '(düzenlenmiş görsel)', ekler: [ref] });
+      setDuzenle(null);
+      void qc.invalidateQueries({ queryKey: ['talep', ticketId] });
+      void qc.invalidateQueries({ queryKey: ['talepler'] });
+    } catch (e) {
+      setError(e instanceof ApiHatasi ? e.message : 'Gönderilemedi');
+    } finally {
+      setDuzenleGonderiliyor(false);
+    }
+  }
 
   const yanitla = useMutation({
     mutationFn: async () => {
@@ -102,7 +128,7 @@ export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onB
 
         <h1 className="text-lg font-semibold text-slate-900">{t.baslik}</h1>
         <p className="prose-plain mt-3 text-sm text-slate-700">{t.aciklama}</p>
-        {t.ekler.length > 0 && <Ekler ogeler={t.ekler} />}
+        {t.ekler.length > 0 && <Ekler ogeler={t.ekler} onDuzenle={duzenleyiciAc} />}
       </Card>
 
       {t.mesajlar.map((mesaj) => {
@@ -117,7 +143,7 @@ export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onB
               <span className="text-slate-500"> · {destekten ? 'Destek ekibi' : 'siz'}</span>
             </p>
             <p className="prose-plain text-sm text-slate-700">{mesaj.icerik}</p>
-            {mesaj.ekler.length > 0 && <Ekler ogeler={mesaj.ekler} />}
+            {mesaj.ekler.length > 0 && <Ekler ogeler={mesaj.ekler} onDuzenle={duzenleyiciAc} />}
           </Card>
         );
       })}
@@ -188,22 +214,43 @@ export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onB
           </div>
         </form>
       </Card>
+
+      {duzenle && (
+        <GorselDuzenleyici
+          dataUrl={duzenle}
+          gonderiliyor={duzenleGonderiliyor}
+          onGonder={duzenleneniGonder}
+          onKapat={() => setDuzenle(null)}
+        />
+      )}
     </div>
   );
 }
 
-function Ekler({ ogeler }: { ogeler: Ek[] }) {
+function Ekler({ ogeler, onDuzenle }: { ogeler: Ek[]; onDuzenle?: (indirmeAdresi: string) => void }) {
   return (
     <div className="mt-3 flex flex-wrap gap-2">
       {ogeler.map((dosya) =>
         dosya.mimeTipi.startsWith('image/') ? (
-          <a key={dosya.id} href={dosya.indirmeAdresi} target="_blank" rel="noreferrer">
-            <img
-              src={dosya.indirmeAdresi}
-              alt={dosya.dosyaAdi}
-              className="h-24 rounded-md object-cover ring-1 ring-slate-200"
-            />
-          </a>
+          <div key={dosya.id} className="group relative">
+            <a href={dosya.indirmeAdresi} target="_blank" rel="noreferrer">
+              <img
+                src={dosya.indirmeAdresi}
+                alt={dosya.dosyaAdi}
+                className="h-24 rounded-md object-cover ring-1 ring-slate-200"
+              />
+            </a>
+            {onDuzenle && (
+              <button
+                type="button"
+                onClick={() => onDuzenle(dosya.indirmeAdresi)}
+                className="absolute bottom-1 right-1 rounded bg-slate-900/70 px-1.5 py-0.5 text-[11px]
+                           text-white opacity-0 transition group-hover:opacity-100"
+              >
+                Düzenle
+              </button>
+            )}
+          </div>
         ) : (
           <a
             key={dosya.id}

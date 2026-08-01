@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { app, BrowserWindow, ipcMain, Menu, Notification, nativeImage, shell, Tray } from 'electron';
 import { autoUpdater } from 'electron-updater';
-import { collectDeviceInfo } from './sysinfo.js';
+import { collectDeviceInfo, collectInventory } from './sysinfo.js';
 import { captureScreen, readClipboardImage } from './screenshot.js';
 import {
   getApiUrl,
@@ -121,6 +121,23 @@ function registerIpc(): void {
   ipcMain.handle('device:collect', () => collectDeviceInfo());
   ipcMain.handle('device:getSharePreference', () => getShareDeviceInfo());
   ipcMain.handle('device:setSharePreference', (_e, value: boolean) => setShareDeviceInfo(value));
+
+  // Envanter (detaylı, otomatik) toplama.
+  ipcMain.handle('inventory:collect', () => collectInventory());
+
+  // Sunucudaki bir görseli CORS/taint olmadan al: ana süreçte indirip data URL
+  // döner (düzenleyicide canvas'a çizmek için).
+  ipcMain.handle('image:fetch', async (_e, url: string): Promise<string | null> => {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+      if (!res.ok) return null;
+      const tip = res.headers.get('content-type') ?? 'image/png';
+      const buf = Buffer.from(await res.arrayBuffer());
+      return `data:${tip};base64,${buf.toString('base64')}`;
+    } catch {
+      return null;
+    }
+  });
 
   ipcMain.handle('screenshot:capture', () => captureScreen());
   ipcMain.handle('screenshot:fromClipboard', () => readClipboardImage());

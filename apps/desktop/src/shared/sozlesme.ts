@@ -104,6 +104,34 @@ export interface CihazBilgisi {
   uygulamaSurumu: string;
 }
 
+/** Otomatik toplanan detaylı envanter (CRM `envanterSema` ile birebir). */
+export interface EnvanterBilgisi {
+  bilgisayarAdi?: string;
+  isletimSistemi?: string;
+  islemci?: string;
+  kullaniciAdi?: string;
+  toplamBellekMb?: number;
+  bellekModulleri?: {
+    boyutMb?: number;
+    tip?: string;
+    hiz?: number;
+    uretici?: string;
+    slot?: string;
+  }[];
+  bellekSlotDolu?: number;
+  bellekSlotBos?: number;
+  diskler?: { ad?: string; tip?: string; arayuz?: string; boyutGb?: number }[];
+  anakartUretici?: string;
+  anakartModel?: string;
+  sistemUretici?: string;
+  sistemModel?: string;
+  sasiTipi?: string;
+  yerelIp?: string;
+  disIp?: string;
+  agAdi?: string;
+  uygulamaSurumu?: string;
+}
+
 export interface Kategori {
   id: string;
   ad: string;

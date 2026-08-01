@@ -51,7 +51,7 @@ export function useLiveUpdates(etkin: boolean, kullaniciId: string | undefined):
 
           // Kendi (müşteri) yazdığımız mesaj için bildirim gösterme. Sunucu
           // mesajı `yazar.tip` ile gönderiyor (üst seviye `yazarTipi` yok).
-          if (olay.mesaj.yazar.tip === 'MUSTERI') return;
+          if (olay.mesaj.yazar?.tip === 'MUSTERI') return;
 
           okunmamis += 1;
           void window.desktop.app.setBadge(okunmamis);

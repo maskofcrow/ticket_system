@@ -40,6 +40,10 @@ export function installBrowserShim(): void {
       getSharePreference: async () => true,
       setSharePreference: async () => undefined,
     },
+    inventory: {
+      collect: async () => ({ bilgisayarAdi: 'tarayici-onizleme', uygulamaSurumu: '0.0.0-dev' }),
+    },
+    gorselGetir: async (url) => url,
     screenshot: {
       capture: async () => ({ error: 'Ekran yakalama yalnızca masaüstü uygulamasında çalışır.' }),
       fromClipboard: async () => null,

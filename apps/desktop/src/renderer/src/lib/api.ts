@@ -1,5 +1,6 @@
 import type {
   EkipUyesi,
+  EnvanterBilgisi,
   SohbetOzeti,
   SohbetMesaji,
   SohbetOlusturIstegi,
@@ -245,6 +246,10 @@ export const api = {
 
   yuklemeIzni: (govde: YuklemeIzniIstegi) =>
     apiFetch<YuklemeIzniCevabi>('/yukleme', { method: 'POST', body: govde }),
+
+  /** Otomatik toplanan cihaz envanterini bildir (kullanıcıya bağlanır). */
+  envanterBildir: (govde: EnvanterBilgisi) =>
+    apiFetch<{ ok: boolean }>('/envanter', { method: 'POST', body: govde }),
 
   // ── Firma-içi ekip / workspace ──────────────────────────────────────────────
 

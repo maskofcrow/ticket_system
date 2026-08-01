@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SessionProvider, useSession } from './lib/session';
 import { useLiveUpdates } from './lib/notifications';
+import { useEnvanterRaporu } from './lib/envanter';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 import { TicketListScreen } from './screens/TicketListScreen';
 import { NewTicketScreen } from './screens/NewTicketScreen';
@@ -29,6 +30,7 @@ function Shell() {
   const [view, setView] = useState<View>({ name: 'list' });
 
   useLiveUpdates(Boolean(kullanici), kullanici?.id);
+  useEnvanterRaporu(kullanici?.id);
 
   if (yukleniyor) return <Spinner />;
   if (!kullanici) return <WelcomeScreen />;
