@@ -1,7 +1,11 @@
 import { hostname, totalmem, networkInterfaces, userInfo } from 'node:os';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { app } from 'electron';
 import si from 'systeminformation';
 import type { CihazBilgisi, EnvanterBilgisi } from '../shared/sozlesme.js';
+
+const execFileP = promisify(execFile);
 
 /**
  * Ticket açılırken toplanan makine bilgisi. Kullanıcıya ne gönderileceği
@@ -54,7 +58,7 @@ function firstLocalIp(): string | null {
  * sayfasına işlenir. Her alan best-effort; hata olursa o alan boş geçilir.
  */
 export async function collectInventory(): Promise<EnvanterBilgisi> {
-  const [os, cpu, mem, disk, board, sys, chassis, wifi, disIp] = await Promise.all([
+  const [os, cpu, mem, disk, board, sys, chassis, wifi, disIp, toplamSlot] = await Promise.all([
     si.osInfo().catch(() => null),
     si.cpu().catch(() => null),
     si.memLayout().catch(() => [] as si.Systeminformation.MemLayoutData[]),
@@ -64,10 +68,15 @@ export async function collectInventory(): Promise<EnvanterBilgisi> {
     si.chassis().catch(() => null),
     si.wifiConnections().catch(() => [] as si.Systeminformation.WifiConnectionData[]),
     disIpAl(),
+    toplamBellekSloti(),
   ]);
 
   const doluModuller = mem.filter((m) => m.size > 0);
-  const bosSlot = mem.filter((m) => m.size === 0).length;
+  const dolu = doluModuller.length;
+  // Toplam slot: Windows'ta memLayout boş slotları vermez, ayrıca WMI'den alınır.
+  // Diğer sistemlerde memLayout boş slotları da döndürüyorsa uzunluğundan gelir.
+  const toplam = toplamSlot ?? (mem.length > dolu ? mem.length : null);
+  const bosSlot = toplam != null ? Math.max(0, toplam - dolu) : undefined;
 
   return {
     bilgisayarAdi: hostname(),
@@ -82,8 +91,8 @@ export async function collectInventory(): Promise<EnvanterBilgisi> {
       uretici: m.manufacturer || undefined,
       slot: m.bank || undefined,
     })),
-    bellekSlotDolu: doluModuller.length,
-    bellekSlotBos: mem.length > doluModuller.length ? bosSlot : undefined,
+    bellekSlotDolu: dolu,
+    bellekSlotBos: bosSlot,
     diskler: disk.map((d) => ({
       ad: [d.vendor, d.name].filter(Boolean).join(' ').trim() || undefined,
       tip: d.type || undefined, // HD / SSD
@@ -100,6 +109,32 @@ export async function collectInventory(): Promise<EnvanterBilgisi> {
     agAdi: wifi[0]?.ssid || undefined,
     uygulamaSurumu: app.getVersion(),
   };
+}
+
+/**
+ * Anakarttaki TOPLAM bellek slotu sayısı. systeminformation `memLayout` Windows'ta
+ * yalnızca dolu slotları döndürdüğü için boş slotu hesaplayamıyoruz; toplam slot
+ * sayısını WMI'den (Win32_PhysicalMemoryArray.MemoryDevices) alıyoruz.
+ * Diğer platformlarda null döner (orada memLayout boş slotları zaten verir).
+ */
+async function toplamBellekSloti(): Promise<number | null> {
+  if (process.platform !== 'win32') return null;
+  try {
+    const { stdout } = await execFileP(
+      'powershell',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        '(Get-CimInstance Win32_PhysicalMemoryArray | Measure-Object -Property MemoryDevices -Sum).Sum',
+      ],
+      { timeout: 8000, windowsHide: true },
+    );
+    const n = parseInt(String(stdout).trim(), 10);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Genel (dış) IP — envanter için dış servise tek bir hafif istek. */
