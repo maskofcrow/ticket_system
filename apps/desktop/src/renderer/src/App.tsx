@@ -50,7 +50,7 @@ function Shell() {
           <span className="flex size-6 items-center justify-center rounded-md bg-slate-900 text-white">
             <Logo size={15} />
           </span>
-          IT Destek
+          Esta Bilişim IT Destek
         </span>
 
         <nav className="ml-2 flex items-center gap-1">

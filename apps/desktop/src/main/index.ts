@@ -20,6 +20,11 @@ const DEFAULT_API_URL =
   (app.isPackaged ? 'https://crm.estabilisim.com' : 'http://localhost:3000');
 const isDev = !app.isPackaged;
 
+// Ürün adı "Esta Bilişim IT Destek" olarak değişti; ama userData klasörü varsayılan
+// olarak productName'e bağlıdır. Eski klasöre sabitliyoruz ki yeniden adlandırma
+// kullanıcıların kayıtlı oturumunu/sunucu ayarını sıfırlayıp çıkış yaptırmasın.
+app.setPath('userData', join(app.getPath('appData'), 'IT Destek'));
+
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 /** Kapatma isteği gerçekten çıkış mı, yoksa tepsiye küçültme mi. */
@@ -32,7 +37,7 @@ function createWindow(): void {
     minWidth: 860,
     minHeight: 600,
     show: false,
-    title: 'IT Destek',
+    title: 'Esta Bilişim IT Destek',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -80,7 +85,7 @@ function createTray(): void {
   icon.setTemplateImage(true);
 
   tray = new Tray(icon);
-  tray.setToolTip('IT Destek');
+  tray.setToolTip('Esta Bilişim IT Destek');
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: 'Pencereyi aç', click: () => showWindow() },
@@ -108,7 +113,7 @@ function setBadge(count: number): void {
   if (process.platform === 'darwin') {
     app.dock?.setBadge(count > 0 ? String(count) : '');
   }
-  tray?.setToolTip(count > 0 ? `IT Destek — ${count} yeni yanıt` : 'IT Destek');
+  tray?.setToolTip(count > 0 ? `Esta Bilişim IT Destek — ${count} yeni yanıt` : 'Esta Bilişim IT Destek');
 }
 
 function registerIpc(): void {

@@ -1,6 +1,6 @@
 appId: com.firma.itdestek
-productName: IT Destek
-copyright: © IT Destek Ekibi
+productName: Esta Bilişim IT Destek
+copyright: © Esta Bilişim
 
 directories:
   output: release
@@ -65,7 +65,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: IT Destek
+  shortcutName: Esta Bilişim IT Destek
   # Kurulum sonrası uygulamayı başlat — kullanıcı anahtarı hemen girsin.
   runAfterFinish: true
 
