@@ -1,4 +1,5 @@
 import type {
+  Kullanici,
   EkipUyesi,
   EnvanterBilgisi,
   SohbetOzeti,
@@ -219,6 +220,10 @@ export const api = {
     }),
 
   cikis: () => apiFetch<void>('/auth/cikis', { method: 'POST' }),
+
+  /** Kendi profilini (ad soyad) güncelle. */
+  profilGuncelle: (ad: string) =>
+    apiFetch<Kullanici>('/profil', { method: 'PATCH', body: { ad } }),
 
   talepler: () =>
     apiFetch<ListeCevabi<TalepOzeti>>('/talepler').then((c) => c.kayitlar),

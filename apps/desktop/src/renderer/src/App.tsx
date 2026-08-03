@@ -8,6 +8,8 @@ import { TicketListScreen } from './screens/TicketListScreen';
 import { NewTicketScreen } from './screens/NewTicketScreen';
 import { TicketDetailScreen } from './screens/TicketDetailScreen';
 import { EkipScreen } from './screens/EkipScreen';
+import { ProfilModal } from './screens/ProfilModal';
+import { Logo } from './components/Logo';
 import { Button, Spinner } from './components/ui';
 
 const queryClient = new QueryClient({
@@ -28,6 +30,7 @@ type Bolum = 'talepler' | 'ekip';
 function Shell() {
   const { kullanici, yukleniyor, cikis } = useSession();
   const [view, setView] = useState<View>({ name: 'list' });
+  const [profilAcik, setProfilAcik] = useState(false);
 
   useLiveUpdates(Boolean(kullanici), kullanici?.id);
   useEnvanterRaporu(kullanici?.id);
@@ -43,7 +46,12 @@ function Shell() {
         className="titlebar-drag flex h-12 shrink-0 items-center gap-3 border-b border-slate-200
                    bg-white px-4 pl-20"
       >
-        <span className="text-sm font-semibold text-slate-900">IT Destek</span>
+        <span className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+          <span className="flex size-6 items-center justify-center rounded-md bg-slate-900 text-white">
+            <Logo size={15} />
+          </span>
+          IT Destek
+        </span>
 
         <nav className="ml-2 flex items-center gap-1">
           <SekmeButonu
@@ -62,12 +70,20 @@ function Shell() {
 
         <div className="ml-auto flex items-center gap-3">
           <span className="text-xs text-slate-500">{kullanici.firmaAdi}</span>
-          <span className="text-xs text-slate-600">{kullanici.ad}</span>
+          <button
+            onClick={() => setProfilAcik(true)}
+            className="rounded-md px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
+            title="Profilim"
+          >
+            {kullanici.ad}
+          </button>
           <Button variant="ghost" onClick={() => void cikis()}>
             Çıkış
           </Button>
         </div>
       </header>
+
+      {profilAcik && <ProfilModal onKapat={() => setProfilAcik(false)} />}
 
       <div className="flex-1 overflow-y-auto">
         {view.name === 'list' && (

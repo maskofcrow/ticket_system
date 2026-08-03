@@ -14,6 +14,7 @@ interface OturumDegeri {
   }) => Promise<void>;
   giris: (eposta: string, parola: string) => Promise<void>;
   cikis: () => Promise<void>;
+  profilGuncelle: (ad: string) => Promise<void>;
 }
 
 const OturumContext = createContext<OturumDegeri | null>(null);
@@ -59,9 +60,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     sifirla();
   }, [sifirla]);
 
+  const profilGuncelle = useCallback<OturumDegeri['profilGuncelle']>(async (ad) => {
+    const guncel = await api.profilGuncelle(ad);
+    setKullanici(guncel);
+  }, []);
+
   const deger = useMemo(
-    () => ({ kullanici, yukleniyor, aktivasyon, giris, cikis }),
-    [kullanici, yukleniyor, aktivasyon, giris, cikis],
+    () => ({ kullanici, yukleniyor, aktivasyon, giris, cikis, profilGuncelle }),
+    [kullanici, yukleniyor, aktivasyon, giris, cikis, profilGuncelle],
   );
 
   return <OturumContext.Provider value={deger}>{children}</OturumContext.Provider>;
