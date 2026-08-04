@@ -52,6 +52,12 @@ export function installBrowserShim(): void {
       getVersion: async () => '0.0.0-dev',
       setBadge: async () => undefined,
     },
+    guncelleme: {
+      onIniyor: () => () => undefined,
+      onIlerleme: () => () => undefined,
+      onHazir: () => () => undefined,
+      kur: async () => undefined,
+    },
     notify: async (title, body) => {
       console.info('[bildirim]', title, body);
     },

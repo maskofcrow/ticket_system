@@ -166,15 +166,39 @@ function setupAutoUpdater(): void {
   autoUpdater.logger = null;
   autoUpdater.autoDownload = true;
 
-  autoUpdater.on('update-downloaded', () => {
+  const gonder = (kanal: string, veri?: unknown): void => {
+    mainWindow?.webContents.send(kanal, veri);
+  };
+
+  // Yeni sürüm bulundu → indirme başladı (kullanıcı görsün).
+  autoUpdater.on('update-available', (info) => {
+    new Notification({
+      title: 'Güncelleme bulundu',
+      body: `Sürüm ${info.version} indiriliyor…`,
+    }).show();
+    gonder('guncelleme:iniyor', info.version);
+  });
+
+  autoUpdater.on('download-progress', (p) => {
+    gonder('guncelleme:ilerleme', Math.round(p.percent));
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
     new Notification({
       title: 'Güncelleme hazır',
-      body: 'IT Destek uygulaması yeniden başlatıldığında güncellenecek.',
+      body: `Sürüm ${info.version} kurulmaya hazır — “Şimdi güncelle” diyebilirsiniz.`,
     }).show();
+    gonder('guncelleme:hazir', info.version);
   });
 
   autoUpdater.on('error', (err) => {
     console.error('[updater]', err.message);
+  });
+
+  // Renderer "Şimdi güncelle" deyince: loading ekranı gösterilip kurulur.
+  ipcMain.handle('guncelleme:kur', () => {
+    quitting = true;
+    autoUpdater.quitAndInstall();
   });
 
   void autoUpdater.checkForUpdatesAndNotify().catch(() => undefined);

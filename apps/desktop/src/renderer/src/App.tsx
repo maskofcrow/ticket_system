@@ -10,6 +10,7 @@ import { TicketDetailScreen } from './screens/TicketDetailScreen';
 import { EkipScreen } from './screens/EkipScreen';
 import { ProfilModal } from './screens/ProfilModal';
 import { Logo } from './components/Logo';
+import { GuncellemeKatmani } from './components/GuncellemeKatmani';
 import { Button, Spinner } from './components/ui';
 
 const queryClient = new QueryClient({
@@ -141,6 +142,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
         <Shell />
+        <GuncellemeKatmani />
       </SessionProvider>
     </QueryClientProvider>
   );

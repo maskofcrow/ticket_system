@@ -42,6 +42,25 @@ const api = {
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
     setBadge: (count: number): Promise<void> => ipcRenderer.invoke('app:setBadge', count),
   },
+  /** Otomatik güncelleme olayları + kurulumu tetikleme. */
+  guncelleme: {
+    onIniyor: (cb: (surum: string) => void): (() => void) => {
+      const h = (_e: unknown, v: string): void => cb(v);
+      ipcRenderer.on('guncelleme:iniyor', h);
+      return () => ipcRenderer.removeListener('guncelleme:iniyor', h);
+    },
+    onIlerleme: (cb: (yuzde: number) => void): (() => void) => {
+      const h = (_e: unknown, v: number): void => cb(v);
+      ipcRenderer.on('guncelleme:ilerleme', h);
+      return () => ipcRenderer.removeListener('guncelleme:ilerleme', h);
+    },
+    onHazir: (cb: (surum: string) => void): (() => void) => {
+      const h = (_e: unknown, v: string): void => cb(v);
+      ipcRenderer.on('guncelleme:hazir', h);
+      return () => ipcRenderer.removeListener('guncelleme:hazir', h);
+    },
+    kur: (): Promise<void> => ipcRenderer.invoke('guncelleme:kur'),
+  },
   notify: (title: string, body: string): Promise<void> =>
     ipcRenderer.invoke('notify', { title, body }),
 };
