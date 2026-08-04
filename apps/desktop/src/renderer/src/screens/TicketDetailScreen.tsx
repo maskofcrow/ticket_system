@@ -97,6 +97,22 @@ export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onB
     ]);
   }
 
+  function resimSec(): void {
+    const girdi = document.createElement('input');
+    girdi.type = 'file';
+    girdi.accept = 'image/*';
+    girdi.multiple = true;
+    girdi.onchange = () => {
+      for (const dosya of Array.from(girdi.files ?? [])) {
+        setBekleyen((onceki) => [
+          ...onceki,
+          { id: crypto.randomUUID(), blob: dosya, previewUrl: URL.createObjectURL(dosya) },
+        ]);
+      }
+    };
+    girdi.click();
+  }
+
   async function submit(event: FormEvent): Promise<void> {
     event.preventDefault();
     setError(null);
@@ -194,19 +210,26 @@ export function TicketDetailScreen({ ticketId, onBack }: { ticketId: string; onB
             </div>
           )}
 
+          <p className="text-xs text-slate-500">
+            Ekran görüntüsü aldıysanız <b>Ctrl+V</b> ile yapıştırın; ya da “Resim ekle” ile seçin.
+          </p>
+
           <div className="flex items-center justify-between">
-            {!kapaliMi && t.durum === 'COZULDU' ? (
-              <Button
-                variant="secondary"
-                type="button"
-                onClick={() => kapat.mutate()}
-                disabled={kapat.isPending}
-              >
-                Sorunum çözüldü, kapat
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" type="button" onClick={resimSec}>
+                Resim ekle
               </Button>
-            ) : (
-              <span />
-            )}
+              {!kapaliMi && t.durum === 'COZULDU' && (
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => kapat.mutate()}
+                  disabled={kapat.isPending}
+                >
+                  Sorunum çözüldü, kapat
+                </Button>
+              )}
+            </div>
 
             <Button type="submit" disabled={yanitla.isPending || !icerik.trim()}>
               {yanitla.isPending ? 'Gönderiliyor…' : 'Gönder'}

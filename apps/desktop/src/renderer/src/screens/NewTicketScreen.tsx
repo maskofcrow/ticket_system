@@ -9,7 +9,7 @@ import {
   type TalepDetayi,
 } from '../../../shared/sozlesme.js';
 import { api, ApiHatasi } from '../lib/api';
-import { dataUrlToBlob, screenshotFilename, uploadFile } from '../lib/upload';
+import { screenshotFilename, uploadFile } from '../lib/upload';
 import { Button, Card, ErrorBanner, Field, Input, InfoBanner, Select, Textarea } from '../components/ui';
 
 interface PendingAttachment {
@@ -80,32 +80,26 @@ export function NewTicketScreen({
     },
   });
 
-  function addImage(dataUrl: string, filename: string): void {
-    void dataUrlToBlob(dataUrl).then((blob) => {
-      setAttachments((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), filename, previewUrl: dataUrl, blob },
-      ]);
-    });
-  }
-
-  async function takeScreenshot(): Promise<void> {
-    setError(null);
-    const result = await window.desktop.screenshot.capture();
-    if ('error' in result) {
-      setError(result.error);
-      return;
-    }
-    addImage(result.dataUrl, screenshotFilename());
-  }
-
-  async function pasteFromClipboard(): Promise<void> {
-    const image = await window.desktop.screenshot.fromClipboard();
-    if (!image) {
-      setError('Panoda görsel bulunamadı. Önce bir ekran görüntüsü alın.');
-      return;
-    }
-    addImage(image.dataUrl, screenshotFilename());
+  /** Dosya seçiciden resim ekle. */
+  function resimSec(): void {
+    const girdi = document.createElement('input');
+    girdi.type = 'file';
+    girdi.accept = 'image/*';
+    girdi.multiple = true;
+    girdi.onchange = () => {
+      for (const file of Array.from(girdi.files ?? [])) {
+        setAttachments((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            filename: file.name || screenshotFilename(),
+            previewUrl: URL.createObjectURL(file),
+            blob: file,
+          },
+        ]);
+      }
+    };
+    girdi.click();
   }
 
   /** Ctrl/Cmd+V ile doğrudan yapıştırma — en çok kullanılan yol bu. */
@@ -203,16 +197,16 @@ export function NewTicketScreen({
 
       <Card className="space-y-3 p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-900">Ekran görüntüsü ve dosyalar</h2>
-          <div className="flex gap-2">
-            <Button variant="secondary" type="button" onClick={() => void takeScreenshot()}>
-              Ekranı yakala
-            </Button>
-            <Button variant="secondary" type="button" onClick={() => void pasteFromClipboard()}>
-              Panodan ekle
-            </Button>
-          </div>
+          <h2 className="text-sm font-semibold text-slate-900">Resimler ve dosyalar</h2>
+          <Button variant="secondary" type="button" onClick={resimSec}>
+            Resim ekle
+          </Button>
         </div>
+
+        <p className="text-xs text-slate-500">
+          Ekran görüntüsü aldıysanız <b>Ctrl+V</b> ile buraya (ya da açıklama alanına)
+          yapıştırabilirsiniz; ya da “Resim ekle” ile dosya seçin.
+        </p>
 
         {attachments.length > 0 ? (
           <div className="flex flex-wrap gap-2">
