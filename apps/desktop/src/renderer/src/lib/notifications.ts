@@ -25,18 +25,13 @@ export function useLiveUpdates(etkin: boolean, kullaniciId: string | undefined):
 
   useEffect(() => {
     if (!etkin) return;
-    const jeton = getErisimJetonu();
-    if (!jeton) return;
 
-    /**
-     * EventSource özel başlık gönderemediği için jeton sorgu dizisinde gidiyor.
-     * Kısa ömürlü erişim jetonu olduğu için kabul edilebilir; kalıcı yenileme
-     * jetonu buraya asla girmez (sunucu tarafı da bunu böyle bekliyor).
-     */
-    const adres = `${getApiUrl()}/api/destek/akis?jeton=${encodeURIComponent(jeton)}`;
-    const kaynak = new EventSource(adres);
+    let kaynak: EventSource | null = null;
+    let kapandi = false;
+    let yenidenZaman: ReturnType<typeof setTimeout> | undefined;
 
-    kaynak.onmessage = (olayVerisi) => {
+    // Mesaj işleyici — her yeniden bağlanmada aynı fonksiyon kullanılır.
+    const isle = (olayVerisi: MessageEvent) => {
       let olay: TalepOlayi;
       try {
         olay = JSON.parse(olayVerisi.data) as TalepOlayi;
@@ -111,16 +106,39 @@ export function useLiveUpdates(etkin: boolean, kullaniciId: string | undefined):
     };
 
     /**
-     * EventSource kopukluğu kendi başına yeniden dener; burada yalnızca
-     * gürültüyü kesiyoruz. Kalıcı 401'de akış kapanır ve sonraki API isteği
-     * zaten oturumu yeniler.
+     * SSE bağlantısı; kopunca (sunucu yeniden başlatma, ağ, jeton süresi dolması)
+     * TAZE jetonla yeniden kurulur. EventSource'un kendi yeniden denemesi eski
+     * (süresi dolmuş) jetonu URL'de taşıdığı için 401 döngüsüne giriyordu — bu
+     * yüzden manuel yönetiyoruz. Jeton düzenli API çağrılarıyla tazelendiğinden
+     * bağlantı birkaç saniyede toparlar.
      */
-    kaynak.onerror = () => {
-      /* sessiz — tarayıcı otomatik yeniden bağlanır */
+    const baglan = () => {
+      if (kapandi) return;
+      const jeton = getErisimJetonu();
+      if (!jeton) {
+        yenidenZaman = setTimeout(baglan, 3000);
+        return;
+      }
+      kaynak = new EventSource(
+        `${getApiUrl()}/api/destek/akis?jeton=${encodeURIComponent(jeton)}`,
+      );
+      kaynak.onmessage = isle;
+      kaynak.onerror = () => {
+        kaynak?.close();
+        kaynak = null;
+        if (!kapandi) {
+          clearTimeout(yenidenZaman);
+          yenidenZaman = setTimeout(baglan, 3000);
+        }
+      };
     };
 
+    baglan();
+
     return () => {
-      kaynak.close();
+      kapandi = true;
+      clearTimeout(yenidenZaman);
+      kaynak?.close();
     };
   }, [etkin, kullaniciId, qc]);
 }
