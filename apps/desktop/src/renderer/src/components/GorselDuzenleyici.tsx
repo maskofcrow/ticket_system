@@ -79,7 +79,8 @@ export function GorselDuzenleyici({
     }
   }
 
-  function sekilCiz(ctx: CanvasRenderingContext2D, s: Sekil): void {
+  function sekilCiz(ctx: CanvasRenderingContext2D, s: Sekil | null | undefined): void {
+    if (!s) return; // emniyet: bozuk/null şekil tüm çizimi çökertmesin
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -153,7 +154,8 @@ export function GorselDuzenleyici({
       ciz(null, cizim.current.kirp);
       return;
     }
-    const s = cizim.current.sekil!;
+    const s = cizim.current.sekil;
+    if (!s) return;
     if (s.tip === 'kalem') s.noktalar.push(p);
     else if (s.tip === 'ok' || s.tip === 'kutu') s.b = p;
     ciz(s);
@@ -162,7 +164,13 @@ export function GorselDuzenleyici({
   function birak(): void {
     if (!cizim.current.aktif) return;
     if (cizim.current.kirp) kirpUygula(cizim.current.kirp);
-    else if (cizim.current.sekil) setSekiller((s) => [...s, cizim.current.sekil!]);
+    else if (cizim.current.sekil) {
+      // Şekli ŞİMDİ yakala: setSekiller güncelleyicisi sonraki render'da çalışıyor,
+      // o an cizim.current aşağıda sıfırlanmış olur → aksi halde sekiller'e null
+      // girer ve sekilCiz(null) "reading 'tip'" ile çöker.
+      const eklenen = cizim.current.sekil;
+      setSekiller((s) => [...s, eklenen]);
+    }
     cizim.current = { aktif: false, sekil: null, kirp: null };
   }
 
