@@ -212,6 +212,22 @@ export const api = {
       kimliksiz: true,
     }),
 
+  /** Domain self-servis kaydı 1. adım: kurumsal e-postaya kod gönderir (token YOK). */
+  kayitBaslat: (govde: { eposta: string; ad: string; parola: string }) =>
+    apiFetch<{ ok: true; omurSn: number }>('/auth/kayit-baslat', {
+      method: 'POST',
+      body: govde,
+      kimliksiz: true,
+    }),
+
+  /** Domain self-servis kaydı 2. adım: kodu doğrular, oturum açar. */
+  kayitDogrula: (govde: { eposta: string; kod: string }) =>
+    apiFetch<KimlikCevabi>('/auth/kayit-dogrula', {
+      method: 'POST',
+      body: govde,
+      kimliksiz: true,
+    }),
+
   giris: (govde: { eposta: string; parola: string }) =>
     apiFetch<KimlikCevabi>('/auth/giris', {
       method: 'POST',

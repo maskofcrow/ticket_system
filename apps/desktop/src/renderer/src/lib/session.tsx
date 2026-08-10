@@ -12,6 +12,10 @@ interface OturumDegeri {
     ad: string;
     parola: string;
   }) => Promise<void>;
+  /** Domain self-servis 1. adım — kod gönderir (oturum açılmaz). */
+  kayitBaslat: (girdi: { eposta: string; ad: string; parola: string }) => Promise<void>;
+  /** Domain self-servis 2. adım — kodu doğrular, oturum açar. */
+  kayitDogrula: (eposta: string, kod: string) => Promise<void>;
   giris: (eposta: string, parola: string) => Promise<void>;
   cikis: () => Promise<void>;
   profilGuncelle: (ad: string) => Promise<void>;
@@ -48,6 +52,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setKullanici(veri.kullanici);
   }, []);
 
+  const kayitBaslat = useCallback<OturumDegeri['kayitBaslat']>(async (girdi) => {
+    await api.kayitBaslat(girdi);
+  }, []);
+
+  const kayitDogrula = useCallback<OturumDegeri['kayitDogrula']>(async (eposta, kod) => {
+    const veri = await api.kayitDogrula({ eposta, kod });
+    await kimligiUygula(veri);
+    setKullanici(veri.kullanici);
+  }, []);
+
   const giris = useCallback<OturumDegeri['giris']>(async (eposta, parola) => {
     const veri = await api.giris({ eposta, parola });
     await kimligiUygula(veri);
@@ -66,8 +80,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deger = useMemo(
-    () => ({ kullanici, yukleniyor, aktivasyon, giris, cikis, profilGuncelle }),
-    [kullanici, yukleniyor, aktivasyon, giris, cikis, profilGuncelle],
+    () => ({
+      kullanici,
+      yukleniyor,
+      aktivasyon,
+      kayitBaslat,
+      kayitDogrula,
+      giris,
+      cikis,
+      profilGuncelle,
+    }),
+    [kullanici, yukleniyor, aktivasyon, kayitBaslat, kayitDogrula, giris, cikis, profilGuncelle],
   );
 
   return <OturumContext.Provider value={deger}>{children}</OturumContext.Provider>;

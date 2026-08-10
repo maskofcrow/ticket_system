@@ -87,6 +87,25 @@ export interface AktivasyonIstegi {
   parola: string;
 }
 
+/** Domain self-servis kaydı 1. adım — kurumsal e-postaya doğrulama kodu gönderir. */
+export interface KayitBaslatIstegi {
+  eposta: string;
+  ad: string;
+  parola: string;
+}
+
+/** kayit-baslat cevabı — token dönmez, yalnızca kodun ömrü. */
+export interface KayitBaslatCevabi {
+  ok: true;
+  omurSn: number;
+}
+
+/** Domain self-servis kaydı 2. adım — e-postaya gelen 6 haneli kodu doğrular. */
+export interface KayitDogrulaIstegi {
+  eposta: string;
+  kod: string;
+}
+
 export interface GirisIstegi {
   eposta: string;
   parola: string;
