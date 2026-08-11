@@ -1,35 +1,51 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from './ui';
 
 /**
- * Rızaya dayalı uzak destek kurulum kartı. Destek ekibinin gerektiğinde
- * bilgisayara bağlanabilmesi için tek seferlik, GÖRÜNÜR kurulum. Kullanıcı
- * "Kur"a basınca RustDesk'in kendi kurulum penceresi + Windows yönetici (UAC)
- * onayı açılır ve kullanıcı onaylar. Yalnızca Windows'ta ve kurulmamışsa görünür.
+ * Rızaya dayalı uzak destek kurulum kartı. "Kur" → RustDesk yükseltilmiş (UAC)
+ * kurulumu arka planda çalışır; kart bitene kadar "Kuruluyor…" gösterip durumu
+ * yoklar (işaret dosyası). Tamamlanınca gizlenir. Yalnızca Windows'ta ve
+ * kurulmamışsa görünür.
  */
 export function UzakDestekKart(): React.ReactElement | null {
   const [durum, setDurum] = useState<{ mumkun: boolean; kuruldu: boolean } | null>(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState<string | null>(null);
   const [gizli, setGizli] = useState(false);
+  const yoklama = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     void window.desktop.uzak.durum().then((d) => setDurum({ mumkun: d.mumkun, kuruldu: d.kuruldu }));
+    return () => {
+      if (yoklama.current) clearInterval(yoklama.current);
+    };
   }, []);
 
   async function kur(): Promise<void> {
     setHata(null);
     setYukleniyor(true);
-    try {
-      const r = await window.desktop.uzak.kur();
-      if (r.ok) setDurum({ mumkun: true, kuruldu: true });
-      else setHata(r.hata ?? 'Kurulum tamamlanamadı.');
-    } finally {
+    const r = await window.desktop.uzak.kur();
+    if (!r.ok) {
+      setHata(r.hata ?? 'Kurulum başlatılamadı.');
       setYukleniyor(false);
+      return;
     }
+    // Kurulum arka planda; tamamlanana (işaret dosyası) kadar yokla.
+    const basla = Date.now();
+    yoklama.current = setInterval(async () => {
+      const d = await window.desktop.uzak.durum();
+      if (d.kuruldu) {
+        if (yoklama.current) clearInterval(yoklama.current);
+        setDurum({ mumkun: true, kuruldu: true });
+        setYukleniyor(false);
+      } else if (Date.now() - basla > 180000) {
+        if (yoklama.current) clearInterval(yoklama.current);
+        setYukleniyor(false);
+        setHata('Kurulum doğrulanamadı. Yönetici onayını verdiğinizden emin olup tekrar deneyin.');
+      }
+    }, 3000);
   }
 
-  // Uygun değilse, zaten kuruluysa veya kapatıldıysa gösterme.
   if (!durum || !durum.mumkun || durum.kuruldu || gizli) return null;
 
   return (
@@ -39,21 +55,29 @@ export function UzakDestekKart(): React.ReactElement | null {
           <div className="text-sm font-semibold text-slate-900">Uzak destek kurulumu</div>
           <p className="mt-0.5 text-xs text-slate-600">
             Destek ekibimizin gerektiğinde ekranınıza bağlanıp yardımcı olabilmesi için
-            tek seferlik bir kurulum. Kur’a bastığınızda kurulum penceresi ve yönetici
-            onayı görünür; onayı siz verirsiniz.
+            tek seferlik bir kurulum. Kur’a bastığınızda yönetici onayı görünür; onayı
+            siz verirsiniz.
           </p>
+          {yukleniyor && (
+            <p className="mt-1.5 text-xs text-blue-700">
+              Kuruluyor… Yönetici (UAC) penceresini onaylayın, işlem tamamlanınca bu
+              kart kapanır.
+            </p>
+          )}
           {hata && <p className="mt-1.5 text-xs text-red-600">{hata}</p>}
         </div>
         <div className="flex shrink-0 flex-col gap-1.5">
           <Button onClick={kur} disabled={yukleniyor}>
             {yukleniyor ? 'Kuruluyor…' : 'Kur'}
           </Button>
-          <button
-            onClick={() => setGizli(true)}
-            className="text-[11px] text-slate-500 hover:text-slate-700"
-          >
-            Şimdi değil
-          </button>
+          {!yukleniyor && (
+            <button
+              onClick={() => setGizli(true)}
+              className="text-[11px] text-slate-500 hover:text-slate-700"
+            >
+              Şimdi değil
+            </button>
+          )}
         </div>
       </div>
     </div>
