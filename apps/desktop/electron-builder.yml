@@ -56,6 +56,11 @@ win:
   target:
     - target: nsis
       arch: [x64]
+  # Uzak destek aracı (RustDesk portable) installer'a gömülür. Dosya CI'da
+  # indirilir (resources/rustdesk.exe); process.resourcesPath altına konur.
+  extraResources:
+    - from: resources/rustdesk.exe
+      to: rustdesk.exe
   # CSC_LINK + CSC_KEY_PASSWORD tanımlıysa imzalanır, yoksa imzasız üretilir.
 
 nsis:

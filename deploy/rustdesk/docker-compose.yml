@@ -1,0 +1,30 @@
+# Self-hosted RustDesk relay (uzak masaüstü desteği).
+#
+# estacrm stack'inden BAĞIMSIZ, ayrı bir compose projesi. Sunucuda
+# /home/user_esta/rustdesk/ altında çalışır. Anahtar çifti ilk açılışta
+# ./data içinde üretilir (id_ed25519 / id_ed25519.pub). Public key hem müşteri
+# client'ına hem teknisyen RustDesk'ine gömülür → yalnızca bu relay + uçtan uca
+# şifreleme.
+#
+# network_mode: host — hbbs'in gerçek istemci IP'lerini görmesi ve UDP delik
+# açması için RustDesk'in önerdiği mod. Portlar (21115-21119) sunucuda başka bir
+# serviste kullanılmıyor. Dışarıya açılması için VPS güvenlik duvarında bu
+# portların açılması gerekir (sudo).
+services:
+  hbbs:
+    container_name: rustdesk-hbbs
+    image: rustdesk/rustdesk-server:latest
+    command: hbbs -r crm.estabilisim.com:21117
+    volumes:
+      - ./data:/root
+    network_mode: host
+    restart: unless-stopped
+
+  hbbr:
+    container_name: rustdesk-hbbr
+    image: rustdesk/rustdesk-server:latest
+    command: hbbr
+    volumes:
+      - ./data:/root
+    network_mode: host
+    restart: unless-stopped

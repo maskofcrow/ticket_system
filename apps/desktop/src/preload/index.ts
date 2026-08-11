@@ -61,6 +61,12 @@ const api = {
     },
     kur: (): Promise<void> => ipcRenderer.invoke('guncelleme:kur'),
   },
+  /** Uzak masaüstü (RustDesk) — durum sorgusu + rızaya dayalı kurulum. */
+  uzak: {
+    durum: (): Promise<{ mumkun: boolean; kuruldu: boolean; rustdeskId?: string }> =>
+      ipcRenderer.invoke('uzak:durum'),
+    kur: (): Promise<{ ok: boolean; hata?: string }> => ipcRenderer.invoke('uzak:kur'),
+  },
   notify: (title: string, body: string): Promise<void> =>
     ipcRenderer.invoke('notify', { title, body }),
 };

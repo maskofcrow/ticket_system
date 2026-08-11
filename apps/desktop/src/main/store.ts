@@ -9,6 +9,12 @@ interface StoreSchema {
   apiUrl?: string;
   /** Sistem bilgisi gönderme onayı — kullanıcı bir kez karar verir, sonra hatırlanır. */
   shareDeviceInfo?: boolean;
+  /** RustDesk gözetimsiz şifresi (safeStorage ile şifreli, base64). */
+  rustdeskSifre?: string;
+  /** Şifreleme kullanılamayan sistemlerde düz metin yedeği. */
+  rustdeskSifrePlain?: string;
+  /** RustDesk kurulumu tamamlandı mı. */
+  rustdeskKuruldu?: boolean;
 }
 
 const store = new Store<StoreSchema>({ name: 'ticket-desktop' });
@@ -66,4 +72,36 @@ export function getShareDeviceInfo(): boolean {
 
 export function setShareDeviceInfo(value: boolean): void {
   store.set('shareDeviceInfo', value);
+}
+
+/** RustDesk gözetimsiz şifresi — refresh token ile aynı safeStorage deseni. */
+export function saveRustdeskSifre(sifre: string): void {
+  if (safeStorage.isEncryptionAvailable()) {
+    store.set('rustdeskSifre', safeStorage.encryptString(sifre).toString('base64'));
+    store.delete('rustdeskSifrePlain');
+  } else {
+    store.set('rustdeskSifrePlain', sifre);
+    store.delete('rustdeskSifre');
+  }
+}
+
+export function readRustdeskSifre(): string | null {
+  const encrypted = store.get('rustdeskSifre');
+  if (encrypted) {
+    try {
+      return safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
+    } catch {
+      store.delete('rustdeskSifre');
+      return null;
+    }
+  }
+  return store.get('rustdeskSifrePlain') ?? null;
+}
+
+export function getRustdeskKuruldu(): boolean {
+  return store.get('rustdeskKuruldu') ?? false;
+}
+
+export function setRustdeskKuruldu(value: boolean): void {
+  store.set('rustdeskKuruldu', value);
 }

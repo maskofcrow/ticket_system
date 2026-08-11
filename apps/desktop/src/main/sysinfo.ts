@@ -4,6 +4,7 @@ import { promisify } from 'node:util';
 import { app } from 'electron';
 import si from 'systeminformation';
 import type { CihazBilgisi, EnvanterBilgisi } from '../shared/sozlesme.js';
+import { uzakDurum } from './uzak.js';
 
 const execFileP = promisify(execFile);
 
@@ -108,6 +109,7 @@ export async function collectInventory(): Promise<EnvanterBilgisi> {
     disIp: disIp ?? undefined,
     agAdi: wifi[0]?.ssid || undefined,
     uygulamaSurumu: app.getVersion(),
+    ...(await uzakDurum()),
   };
 }
 

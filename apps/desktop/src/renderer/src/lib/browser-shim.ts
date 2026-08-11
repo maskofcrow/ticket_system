@@ -58,6 +58,10 @@ export function installBrowserShim(): void {
       onHazir: () => () => undefined,
       kur: async () => undefined,
     },
+    uzak: {
+      durum: async () => ({ mumkun: false, kuruldu: false }),
+      kur: async () => ({ ok: false, hata: 'Yalnızca masaüstünde.' }),
+    },
     notify: async (title, body) => {
       console.info('[bildirim]', title, body);
     },

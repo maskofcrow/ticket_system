@@ -149,6 +149,9 @@ export interface EnvanterBilgisi {
   disIp?: string;
   agAdi?: string;
   uygulamaSurumu?: string;
+  /** Uzak masaüstü (RustDesk). Sunucuda şifre AES ile şifreli saklanır. */
+  rustdeskId?: string;
+  rustdeskSifre?: string;
 }
 
 export interface Kategori {

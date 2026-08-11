@@ -11,6 +11,7 @@ import { EkipScreen } from './screens/EkipScreen';
 import { ProfilModal } from './screens/ProfilModal';
 import { Logo } from './components/Logo';
 import { GuncellemeKatmani } from './components/GuncellemeKatmani';
+import { UzakDestekKart } from './components/UzakDestekKart';
 import { Button, Spinner } from './components/ui';
 
 const queryClient = new QueryClient({
@@ -87,6 +88,7 @@ function Shell() {
       {profilAcik && <ProfilModal onKapat={() => setProfilAcik(false)} />}
 
       <div className="flex-1 overflow-y-auto">
+        <UzakDestekKart />
         {view.name === 'list' && (
           <TicketListScreen
             onNew={() => setView({ name: 'new' })}

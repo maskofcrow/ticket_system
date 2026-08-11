@@ -3,6 +3,7 @@ import { app, BrowserWindow, ipcMain, Menu, Notification, nativeImage, shell, Tr
 import { autoUpdater } from 'electron-updater';
 import { collectDeviceInfo, collectInventory } from './sysinfo.js';
 import { captureScreen, readClipboardImage } from './screenshot.js';
+import { uzakDurumUI, uzakKurulumBaslat } from './uzak.js';
 import {
   getApiUrl,
   getShareDeviceInfo,
@@ -146,6 +147,10 @@ function registerIpc(): void {
 
   ipcMain.handle('screenshot:capture', () => captureScreen());
   ipcMain.handle('screenshot:fromClipboard', () => readClipboardImage());
+
+  // Uzak masaüstü (RustDesk): durum + rızaya dayalı kurulum.
+  ipcMain.handle('uzak:durum', () => uzakDurumUI());
+  ipcMain.handle('uzak:kur', () => uzakKurulumBaslat());
 
   ipcMain.handle('app:getVersion', () => app.getVersion());
   ipcMain.handle('app:setBadge', (_e, count: number) => setBadge(count));
