@@ -56,8 +56,11 @@ export async function uzakKurulumBaslat(): Promise<{ ok: boolean; hata?: string 
     await mkdir(dir, { recursive: true });
     const cfg = join(dir, `rustdesk-host=${RELAY_SUNUCU},key=${RELAY_KEY}.exe`);
     await copyFile(exe, cfg);
+    // --silent-install: pencere açmadan servis olarak kurar ve dosya adındaki
+    // config'i (host/key) uygular. Ardından kurulu istemciye kalıcı (gözetimsiz)
+    // şifreyi atar. (--install GUI açıp beklettiği için kullanılmaz.)
     const inner =
-      `& '${cfg.replace(/'/g, "''")}' --install ; Start-Sleep -Seconds 8 ; ` +
+      `& '${cfg.replace(/'/g, "''")}' --silent-install ; Start-Sleep -Seconds 12 ; ` +
       `if (Test-Path '${KURULU_RUSTDESK}') { & '${KURULU_RUSTDESK}' --password '${sifre.replace(/'/g, "''")}' }`;
     await execFileP(
       'powershell',
@@ -68,8 +71,13 @@ export async function uzakKurulumBaslat(): Promise<{ ok: boolean; hata?: string 
       ],
       { timeout: 300000 },
     );
-    await setRustdeskKuruldu(true);
+    // Doğrula: kurulu istemci oluştu mu / ID alınabildi mi.
     await idTazele();
+    const kuruldu = existsSync(KURULU_RUSTDESK) || bellekId != null;
+    if (!kuruldu) {
+      return { ok: false, hata: 'Kurulum doğrulanamadı. Lütfen tekrar deneyin.' };
+    }
+    await setRustdeskKuruldu(true);
     return { ok: true };
   } catch (e) {
     console.error('[uzak] kurulum hatası:', e);
