@@ -56,18 +56,25 @@ export async function uzakKurulumBaslat(): Promise<{ ok: boolean; hata?: string 
     await mkdir(dir, { recursive: true });
     const cfg = join(dir, `rustdesk-host=${RELAY_SUNUCU},key=${RELAY_KEY}.exe`);
     await copyFile(exe, cfg);
-    // --silent-install: pencere açmadan servis olarak kurar ve dosya adındaki
-    // config'i (host/key) uygular. Ardından kurulu istemciye kalıcı (gözetimsiz)
-    // şifreyi atar. (--install GUI açıp beklettiği için kullanılmaz.)
-    const inner =
-      `& '${cfg.replace(/'/g, "''")}' --silent-install ; Start-Sleep -Seconds 12 ; ` +
-      `if (Test-Path '${KURULU_RUSTDESK}') { & '${KURULU_RUSTDESK}' --password '${sifre.replace(/'/g, "''")}' }`;
+    // Kurulumu ateşle, kurulu istemci oluşana kadar yokla, sonra kalıcı
+    // (gözetimsiz) şifreyi ata. --silent-install kurduktan sonra RustDesk'i
+    // başlatıp süreçte kaldığı için doğrudan beklemek işlemi asılı bırakır;
+    // bu yüzden dosya oluşumunu yokluyoruz. Betik -EncodedCommand ile geçilir
+    // (çift katman tırnak/değişken kaçışını tamamen ortadan kaldırır).
+    const q = (s: string): string => s.replace(/'/g, "''");
+    const script = [
+      `Start-Process -FilePath '${q(cfg)}' -ArgumentList '--silent-install'`,
+      `$n=0`,
+      `while(-not (Test-Path '${q(KURULU_RUSTDESK)}') -and $n -lt 40){ Start-Sleep -Seconds 2; $n++ }`,
+      `if (Test-Path '${q(KURULU_RUSTDESK)}') { Start-Sleep -Seconds 3; Start-Process -FilePath '${q(KURULU_RUSTDESK)}' -ArgumentList '--password','${q(sifre)}' }`,
+    ].join('\n');
+    const b64 = Buffer.from(script, 'utf16le').toString('base64');
     await execFileP(
       'powershell',
       [
         '-NoProfile',
         '-Command',
-        `Start-Process powershell -ArgumentList '-NoProfile','-Command',"${inner.replace(/"/g, '\\"')}" -Verb RunAs -Wait`,
+        `Start-Process powershell -ArgumentList '-NoProfile','-EncodedCommand','${b64}' -Verb RunAs -Wait`,
       ],
       { timeout: 300000 },
     );
