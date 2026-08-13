@@ -1,61 +1,51 @@
 import { app } from 'electron';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { randomBytes } from 'node:crypto';
 import { copyFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  readRustdeskSifre,
-  saveRustdeskSifre,
-  getRustdeskKuruldu,
-  setRustdeskKuruldu,
-} from './store.js';
+import { getRustdeskKuruldu, setRustdeskKuruldu } from './store.js';
 
 const execFileP = promisify(execFile);
 
 /**
- * Uzak masaüstü (RustDesk) entegrasyonu — YALNIZCA Windows.
+ * Uzak masaüstü desteği — YALNIZCA Windows.
  *
- * ŞEFFAF, RIZAYA DAYALI kurulum: kullanıcı uygulamada "Uzak desteği kur" der;
- * Windows UAC (yönetici) onayı GÖRÜNÜR biçimde çıkar; kullanıcı bir kez onaylar.
- * Meşru IT destek amacı: müşteri, destek ekibi bağlanabilsin diye aracı kendi kurar.
+ * Esta Bilişim'in kendi (MeshCentral tabanlı, markalı) uzak destek ajanını kurar.
+ * Ajan grubumuza+sunucumuza önceden ayarlıdır (self-contained exe); kurulunca
+ * cihaz Esta konsolunda görünür ve destek ekibi tarayıcıdan bağlanır. "RustDesk"
+ * ya da "MeshCentral" markası kullanıcıya görünmez.
  *
- * Kurulum betiği yükseltilmiş olarak ATEŞLENİR (fire-and-forget) — beklenmez,
- * çünkü --silent-install sonrası RustDesk süreçte kalıp beklemeyi asıyordu.
- * Bitiş, betiğin en sonunda yazdığı bir işaret dosyasıyla saptanır.
+ * ŞEFFAF, RIZAYA DAYALI: kullanıcı "Kur" der, yalnızca bir Windows yönetici (UAC)
+ * onayı görünür. Kurulum yükseltilmiş olarak ATEŞLENİR (fire-and-forget); bitişi
+ * bir işaret dosyasıyla saptanır (bekleme asılmaz).
  */
 
-const RELAY_SUNUCU = 'crm.estabilisim.com';
-const RELAY_KEY = 'nS9GA3CO3yRIHgQKQtbg3YEBLDMcj1RPcD521J2vueo=';
-const KURULU_RUSTDESK = 'C:\\Program Files\\RustDesk\\rustdesk.exe';
+// Kurulu MeshCentral ajanının varsayılan Windows yolu.
+const KURULU_AJAN = 'C:\\Program Files\\Mesh Agent\\MeshAgent.exe';
 
-let bellekId: string | null = null;
 const win = (): boolean => process.platform === 'win32';
 
 function kurulumDir(): string {
-  return join(app.getPath('userData'), 'rustdesk-kurulum');
+  return join(app.getPath('userData'), 'uzak-destek');
 }
-/** Betik başarıyla tamamlanınca yazılan işaret dosyası. */
 function markerYolu(): string {
   return join(kurulumDir(), '.kuruldu');
 }
-function gomuluExe(): string | null {
+/** Gömülü ajan exe yolu (paketlenmişte resources/, dev'de yok). */
+function gomuluAjan(): string | null {
   if (!app.isPackaged) return null;
-  const yol = join(process.resourcesPath, 'rustdesk.exe');
+  const yol = join(process.resourcesPath, 'meshagent.exe');
   return existsSync(yol) ? yol : null;
 }
-function sifreUret(): string {
-  return randomBytes(12).toString('base64url').slice(0, 16);
-}
 export function uzakDestekMumkun(): boolean {
-  return win() && gomuluExe() !== null;
+  return win() && gomuluAjan() !== null;
 }
 
-/** Kurulum tamamlandı mı: store bayrağı veya işaret dosyası. */
+/** Kurulum tamamlandı mı: store bayrağı, işaret dosyası ya da kurulu ajan. */
 async function tamamMi(): Promise<boolean> {
   if (await getRustdeskKuruldu()) return true;
-  if (existsSync(markerYolu())) {
+  if (existsSync(markerYolu()) || existsSync(KURULU_AJAN)) {
     await setRustdeskKuruldu(true);
     return true;
   }
@@ -64,37 +54,26 @@ async function tamamMi(): Promise<boolean> {
 
 export async function uzakKurulumBaslat(): Promise<{ ok: boolean; hata?: string }> {
   if (!win()) return { ok: false, hata: 'Uzak destek yalnızca Windows’ta.' };
-  const exe = gomuluExe();
-  if (!exe) return { ok: false, hata: 'Kurulum dosyası bulunamadı.' };
+  const ajan = gomuluAjan();
+  if (!ajan) return { ok: false, hata: 'Kurulum dosyası bulunamadı.' };
   try {
-    let sifre = await readRustdeskSifre();
-    if (!sifre) {
-      sifre = sifreUret();
-      await saveRustdeskSifre(sifre);
-    }
     await mkdir(kurulumDir(), { recursive: true });
-    const cfg = join(kurulumDir(), `rustdesk-host=${RELAY_SUNUCU},key=${RELAY_KEY}.exe`);
-    await copyFile(exe, cfg);
+    // Ajanı yazılabilir bir dizine kopyalayıp oradan kur (resources salt-okunur olabilir).
+    const yerel = join(kurulumDir(), 'meshagent.exe');
+    await copyFile(ajan, yerel);
 
-    // Yükseltilmiş betik: config'li kurulumu ateşle → kurulu istemci oluşana
-    // kadar yokla → kalıcı (gözetimsiz) şifreyi ata → işaret dosyasını yaz.
-    // -EncodedCommand ile geçilir (tırnak/değişken kaçışı sorunsuz).
+    // Yükseltilmiş betik: ajanı sessizce kur (-fullinstall, servis olarak) →
+    // kurulu ajan oluşana kadar yokla → işaret dosyasını yaz. -EncodedCommand ile
+    // geçilir (tırnak/değişken kaçışı sorunsuz). Betik beklenmeden ATEŞLENİR.
     const q = (s: string): string => s.replace(/'/g, "''");
     const script = [
-      `Start-Process -FilePath '${q(cfg)}' -ArgumentList '--silent-install'`,
+      `Start-Process -FilePath '${q(yerel)}' -ArgumentList '-fullinstall'`,
       `$n=0`,
-      `while(-not (Test-Path '${q(KURULU_RUSTDESK)}') -and $n -lt 40){ Start-Sleep -Seconds 2; $n++ }`,
-      `if (Test-Path '${q(KURULU_RUSTDESK)}') {`,
-      `  Start-Sleep -Seconds 4`,
-      `  Start-Process -FilePath '${q(KURULU_RUSTDESK)}' -ArgumentList '--password','${q(sifre)}'`,
-      `  Start-Sleep -Seconds 2`,
-      `  New-Item -ItemType File -Force -Path '${q(markerYolu())}' | Out-Null`,
-      `}`,
+      `while(-not (Test-Path '${q(KURULU_AJAN)}') -and $n -lt 40){ Start-Sleep -Seconds 2; $n++ }`,
+      `if (Test-Path '${q(KURULU_AJAN)}') { Start-Sleep -Seconds 2; New-Item -ItemType File -Force -Path '${q(markerYolu())}' | Out-Null }`,
     ].join('\n');
     const b64 = Buffer.from(script, 'utf16le').toString('base64');
 
-    // Fire-and-forget: -Wait YOK. Betik arka planda çalışır; bitişini durum
-    // sorgusu (işaret dosyası) saptar. execFileP yalnızca UAC diyaloğunu açar.
     void execFileP(
       'powershell',
       [
@@ -112,27 +91,12 @@ export async function uzakKurulumBaslat(): Promise<{ ok: boolean; hata?: string 
   }
 }
 
-async function idTazele(): Promise<void> {
-  const exe = existsSync(KURULU_RUSTDESK) ? KURULU_RUSTDESK : gomuluExe();
-  if (!exe) return;
-  try {
-    const { stdout } = await execFileP(exe, ['--get-id'], { timeout: 15000 });
-    const id = stdout.trim().replace(/\s+/g, '');
-    if (/^\d{6,}$/.test(id)) bellekId = id;
-  } catch (e) {
-    console.error('[uzak] id okunamadı:', e);
-  }
-}
-
-export async function uzakDurumUI(): Promise<{ mumkun: boolean; kuruldu: boolean; rustdeskId?: string }> {
+export async function uzakDurumUI(): Promise<{ mumkun: boolean; kuruldu: boolean }> {
   if (!win()) return { mumkun: false, kuruldu: false };
-  const kuruldu = await tamamMi();
-  if (kuruldu && !bellekId) await idTazele();
-  return { mumkun: uzakDestekMumkun(), kuruldu, rustdeskId: bellekId ?? undefined };
+  return { mumkun: uzakDestekMumkun(), kuruldu: await tamamMi() };
 }
 
+/** Envanterle bildirilecek uzak durum (MeshCentral için ek alan gerekmiyor). */
 export async function uzakDurum(): Promise<{ rustdeskId?: string; rustdeskSifre?: string }> {
-  if (!win() || !(await tamamMi())) return {};
-  if (!bellekId) await idTazele();
-  return { rustdeskId: bellekId ?? undefined, rustdeskSifre: (await readRustdeskSifre()) ?? undefined };
+  return {};
 }

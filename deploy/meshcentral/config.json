@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Ylianst/MeshCentral/master/meshcentral-config-schema.json",
+  "settings": {
+    "cert": "uzak.estabilisim.com",
+    "_comment": "TLS'i önündeki Caddy (deploy-web) sonlandırır; MeshCentral HTTP dinler, Caddy 'meshcentral:443'e proxy'ler.",
+    "TLSOffload": true,
+    "port": 443,
+    "aliasPort": 443,
+    "redirPort": 0,
+    "WANonly": true,
+    "AllowFraming": true,
+    "trustedProxy": true
+  },
+  "domains": {
+    "": {
+      "title": "Esta Bilişim",
+      "title2": "Uzak Destek",
+      "welcomeText": "Esta Bilişim IT Destek — Uzak Masaüstü",
+      "footer": "Esta Bilişim",
+      "newAccounts": false
+    }
+  }
+}

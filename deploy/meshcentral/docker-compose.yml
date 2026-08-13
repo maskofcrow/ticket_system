@@ -1,0 +1,26 @@
+# Self-hosted MeshCentral — Esta Bilişim markalı, web tabanlı uzak masaüstü.
+#
+# 443/80 deploy stack tarafından dolu; MeshCentral TLSOffload ile HTTP dinler ve
+# reverse-proxy'nin (deploy-web / Caddy) arkasında durur. Caddy'nin isimle
+# ulaşabilmesi için MeshCentral, deploy_default ağına dış (external) ağ olarak
+# katılır → Caddy `reverse_proxy meshcentral:443` diyebilir. Böylece host portu
+# gerekmez, yalnızca DNS + tek satır Caddy yeter.
+services:
+  meshcentral:
+    container_name: meshcentral
+    image: ghcr.io/ylianst/meshcentral:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4430:443"
+    volumes:
+      - ./data:/opt/meshcentral/meshcentral-data
+      - ./user_files:/opt/meshcentral/meshcentral-files
+      - ./backups:/opt/meshcentral/meshcentral-backups
+    networks:
+      - default
+      - deploy
+
+networks:
+  deploy:
+    external: true
+    name: deploy_default

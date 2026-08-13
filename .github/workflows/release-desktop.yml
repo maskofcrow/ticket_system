@@ -36,14 +36,15 @@ jobs:
 
       - run: npm ci
 
-      # Uzak destek aracı (RustDesk portable) — installer'a gömülmek üzere indir.
-      # Yalnızca Windows paketlemesinde; sabit sürüm (yeniden üretilebilirlik).
-      - name: RustDesk binary'sini indir (Windows)
+      # Uzak destek ajanı (Esta markalı, MeshCentral "EstaClient" grubu, self-contained)
+      # — installer'a gömülmek üzere indir. Yalnızca Windows paketlemesinde.
+      - name: Uzak destek ajanını indir (Windows)
         if: matrix.platform == 'win'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path apps/desktop/resources | Out-Null
-          Invoke-WebRequest -Uri "https://github.com/rustdesk/rustdesk/releases/download/1.4.9/rustdesk-1.4.9-x86_64.exe" -OutFile apps/desktop/resources/rustdesk.exe
+          $mid = "n4razfX9%24Gc8%40lV5ERREYhKATmPn97iv%24iimMeTGYody3LldgxOdHJ7Y37%403YtzT"
+          Invoke-WebRequest -Uri "https://uzak.estabilisim.com/meshagents?id=4&meshid=$mid&installflags=0" -OutFile apps/desktop/resources/meshagent.exe
 
       - name: Uygulamayı paketle
         run: npm run --workspace @ticket/desktop pack:${{ matrix.platform }}
