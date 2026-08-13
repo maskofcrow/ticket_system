@@ -1,10 +1,22 @@
 import { join } from 'node:path';
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import { cihazlariGetir } from './mesh.js';
 import { getSunucu, setSunucu } from './store.js';
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
+
+/**
+ * Otomatik güncelleme — kendi kanalımızdan (electron-builder publish channel:
+ * crmadmin → crmadmin.yml). Yeni sürüm bulununca indirir, çıkışta kurulur.
+ */
+function setupAutoUpdater(): void {
+  if (isDev) return;
+  autoUpdater.logger = null;
+  autoUpdater.autoDownload = true;
+  void autoUpdater.checkForUpdatesAndNotify().catch(() => undefined);
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -63,6 +75,7 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(() => {
     registerIpc();
     createWindow();
+    setupAutoUpdater();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
