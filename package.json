@@ -15,8 +15,10 @@
   "scripts": {
     "dev": "npm run -w @ticket/desktop dev",
     "dev:desktop": "npm run -w @ticket/desktop dev",
+    "dev:crmadmin": "npm run -w @ticket/crmadmin dev",
     "pack:mac": "npm run -w @ticket/desktop pack:mac",
     "pack:win": "npm run -w @ticket/desktop pack:win",
+    "pack:win:crmadmin": "npm run -w @ticket/crmadmin pack:win",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"
