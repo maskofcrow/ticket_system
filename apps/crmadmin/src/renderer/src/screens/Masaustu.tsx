@@ -8,8 +8,9 @@ import '../lib/api';
  * (ajan tabanlı). URL persist:mesh bölümündeki oturumla yetkilenir.
  */
 export function Masaustu({ sunucu, cihaz }: { sunucu: string; cihaz: Cihaz }): React.ReactElement {
-  // viewmode=11: masaüstü; hide=bit-maskesi ile çerçeveyi gizle (gerekirse ayarlanır).
-  const url = `${sunucu}/?gotonode=${cihaz.gotonode}&viewmode=11&hide=127`;
+  // viewmode=11: sadece masaüstü sekmesi; hide=63 MeshCentral çerçevesini/menülerini
+  // gizler (geçerli en yüksek maske). Tarayıcıda kanıtlanan URL: viewmode=11 + gotonode.
+  const url = `${sunucu}/?viewmode=11&hide=63&gotonode=${cihaz.gotonode}`;
   return (
     <div className="flex h-full flex-col bg-black">
       <div className="flex items-center gap-2 bg-slate-900 px-4 py-1.5 text-xs text-slate-300">

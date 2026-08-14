@@ -1,14 +1,14 @@
 /**
  * crmadmin (teknisyen) ↔ main süreç sözleşmesi.
  *
- * crmadmin, kendi çalışan MeshCentral sunucumuza (uzak.estabilisim.com) bağlanan
+ * crmadmin, kendi çalışan MeshCentral sunucumuza (rd.estabilisim.com) bağlanan
  * Esta markalı bir teknisyen uygulamasıdır. MeshCentral arayüzü kullanıcıya
  * gösterilmez; yalnızca cihaz listesi (control WS API'sinden) ve tıklanınca
  * gömülü "sadece masaüstü" görünümü kullanılır.
  */
 
 /** MeshCentral sunucu adresi (varsayılan; ayarlardan değişebilir). */
-export const VARSAYILAN_SUNUCU = 'https://uzak.estabilisim.com';
+export const VARSAYILAN_SUNUCU = 'https://rd.estabilisim.com';
 
 /** Cihaz listesi öğesi (MeshCentral node'undan sadeleştirilmiş). */
 export interface Cihaz {

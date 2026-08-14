@@ -152,6 +152,9 @@ export interface EnvanterBilgisi {
   /** Uzak masaüstü (RustDesk). Sunucuda şifre AES ile şifreli saklanır. */
   rustdeskId?: string;
   rustdeskSifre?: string;
+  /** MeshCentral node kimliği ("node//..."). Kurulu ajandan okunur; panel bununla
+   *  cihazı doğru müşteriye bağlar (şifresiz, ajan tabanlı masaüstü). */
+  meshNodeId?: string;
 }
 
 export interface Kategori {

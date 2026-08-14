@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/Ylianst/MeshCentral/master/meshcentral-config-schema.json",
   "settings": {
-    "cert": "uzak.estabilisim.com",
+    "cert": "rd.estabilisim.com",
     "_comment": "TLS'i önündeki Caddy (deploy-web) sonlandırır; MeshCentral HTTP dinler, Caddy 'meshcentral:443'e proxy'ler.",
     "TLSOffload": true,
     "port": 443,
@@ -17,7 +17,9 @@
       "title2": "Uzak Destek",
       "welcomeText": "Esta Bilişim IT Destek — Uzak Masaüstü",
       "footer": "Esta Bilişim",
-      "newAccounts": false
+      "newAccounts": false,
+      "_comment_certurl": "Cloudflare arkasında ajanın gördüğü (CF) sertifika hash'ini öğren; yoksa 'Agent bad web cert hash' olur.",
+      "certUrl": "https://rd.estabilisim.com"
     }
   }
 }

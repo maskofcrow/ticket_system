@@ -11,10 +11,10 @@ async function cerezBasligi(sunucu: string): Promise<string> {
   return cerezler.map((c) => `${c.name}=${c.value}`).join('; ');
 }
 
-/** node// kimliğinden URL'deki gotonode kısmını çıkarır. */
+/** node// kimliğinden URL'deki gotonode kısmını çıkarır. MeshCentral base64'ü
+ *  (A-Za-z0-9@$) URL-güvenli — encode ETME (kanıtlanmış URL'de `@` düz geçiyor). */
 function gotonodeCikar(id: string): string {
-  const p = id.startsWith('node//') ? id.slice('node//'.length) : id;
-  return encodeURIComponent(p);
+  return id.startsWith('node//') ? id.slice('node//'.length) : id;
 }
 
 /**

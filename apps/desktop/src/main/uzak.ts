@@ -96,7 +96,53 @@ export async function uzakDurumUI(): Promise<{ mumkun: boolean; kuruldu: boolean
   return { mumkun: uzakDestekMumkun(), kuruldu: await tamamMi() };
 }
 
-/** Envanterle bildirilecek uzak durum (MeshCentral için ek alan gerekmiyor). */
-export async function uzakDurum(): Promise<{ rustdeskId?: string; rustdeskSifre?: string }> {
-  return {};
+/** Envanterle bildirilecek uzak durum: kurulu MeshCentral ajanının node id'si. */
+export async function uzakDurum(): Promise<{ meshNodeId?: string }> {
+  if (!win()) return {};
+  try {
+    const id = await meshNodeIdOku();
+    return id ? { meshNodeId: id } : {};
+  } catch (e) {
+    console.error('[uzak] node id okunamadı:', e);
+    return {};
+  }
+}
+
+/**
+ * Kurulu MeshCentral ajanının node kimliğini ("node//...") okur. Önce registry
+ * (HKLM\SOFTWARE\Open Source\Mesh Agent\NodeId = base64), olmazsa 32-bit görünüm,
+ * son çare `MeshAgent.exe -nodeid` (hex). MeshCentral base64'ünde `+`→`@`, `/`→`$`
+ * (48 baytlık node id → 64 base64, padding yok). Panel bu kimlikle cihazı doğru
+ * müşteriye bağlar; sunucudaki node._id ile birebir eşleşir.
+ */
+async function meshNodeIdOku(): Promise<string | null> {
+  const meshB64 = (s: string): string =>
+    s.replace(/^node\/\//, '').replace(/\+/g, '@').replace(/\//g, '$').replace(/=+$/, '');
+
+  for (const anahtar of [
+    'HKLM\\SOFTWARE\\Open Source\\Mesh Agent',
+    'HKLM\\SOFTWARE\\WOW6432Node\\Open Source\\Mesh Agent',
+  ]) {
+    try {
+      const { stdout } = await execFileP('reg', ['query', anahtar, '/v', 'NodeId']);
+      const m = stdout.match(/NodeId\s+REG_SZ\s+(\S+)/i);
+      if (m?.[1]) return `node//${meshB64(m[1])}`;
+    } catch {
+      /* sıradaki anahtarı dene */
+    }
+  }
+
+  // Yedek: ajan çıktısı hex (96 karakter) → mesh base64.
+  try {
+    if (existsSync(KURULU_AJAN)) {
+      const { stdout } = await execFileP(KURULU_AJAN, ['-nodeid']);
+      const hex = stdout.trim().split(/\s+/)[0];
+      if (hex && /^[0-9a-fA-F]{96}$/.test(hex)) {
+        return `node//${meshB64(Buffer.from(hex, 'hex').toString('base64'))}`;
+      }
+    }
+  } catch {
+    /* yut */
+  }
+  return null;
 }
