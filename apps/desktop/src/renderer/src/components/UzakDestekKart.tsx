@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from './ui';
+import { envanterBildirSimdi } from '../lib/envanter';
+
+const OTOMATIK_BAYRAGI = 'uzakOtomatikKurulumDenendi';
 
 /**
- * Rızaya dayalı uzak destek kurulum kartı. "Kur" → RustDesk yükseltilmiş (UAC)
- * kurulumu arka planda çalışır; kart bitene kadar "Kuruluyor…" gösterip durumu
- * yoklar (işaret dosyası). Tamamlanınca gizlenir. Yalnızca Windows'ta ve
- * kurulmamışsa görünür.
+ * Rızaya dayalı uzak destek kurulum kartı. Uygulama açılınca kurulum OTOMATİK
+ * başlar (tek seferlik; müşteri yalnızca bir kez çıkan Yönetici/UAC penceresini
+ * onaylar). Reddederse ya da otomatik başlamazsa manuel "Kur" kartı yedek kalır.
+ * Kurulum bitince meshNodeId ANINDA CRM'e bildirilir ki teknisyene "Uzak bağlan"
+ * hemen gelsin (6 saat / yeniden başlatma beklenmez).
  */
 export function UzakDestekKart(): React.ReactElement | null {
   const [durum, setDurum] = useState<{ mumkun: boolean; kuruldu: boolean } | null>(null);
@@ -14,12 +18,13 @@ export function UzakDestekKart(): React.ReactElement | null {
   const [gizli, setGizli] = useState(false);
   const yoklama = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    void window.desktop.uzak.durum().then((d) => setDurum({ mumkun: d.mumkun, kuruldu: d.kuruldu }));
-    return () => {
-      if (yoklama.current) clearInterval(yoklama.current);
-    };
-  }, []);
+  // Kurulum tamamlanınca: registry NodeId hazır olur olmaz meshNodeId'yi gönder.
+  async function kurulumSonrasiBildir(): Promise<void> {
+    for (const gecikme of [2000, 8000, 20000]) {
+      await new Promise((r) => setTimeout(r, gecikme));
+      if (await envanterBildirSimdi()) return; // meshNodeId gitti → bitti
+    }
+  }
 
   async function kur(): Promise<void> {
     setHata(null);
@@ -38,6 +43,7 @@ export function UzakDestekKart(): React.ReactElement | null {
         if (yoklama.current) clearInterval(yoklama.current);
         setDurum({ mumkun: true, kuruldu: true });
         setYukleniyor(false);
+        void kurulumSonrasiBildir();
       } else if (Date.now() - basla > 180000) {
         if (yoklama.current) clearInterval(yoklama.current);
         setYukleniyor(false);
@@ -45,6 +51,27 @@ export function UzakDestekKart(): React.ReactElement | null {
       }
     }, 3000);
   }
+
+  useEffect(() => {
+    void window.desktop.uzak.durum().then((d) => {
+      setDurum({ mumkun: d.mumkun, kuruldu: d.kuruldu });
+      // Mümkün ve kurulu değilse: tek seferlik OTOMATİK kurulum başlat.
+      if (d.mumkun && !d.kuruldu) {
+        let denendi = false;
+        try {
+          denendi = localStorage.getItem(OTOMATIK_BAYRAGI) === '1';
+          if (!denendi) localStorage.setItem(OTOMATIK_BAYRAGI, '1');
+        } catch {
+          /* localStorage yoksa yine de bir kez dene */
+        }
+        if (!denendi) void kur();
+      }
+    });
+    return () => {
+      if (yoklama.current) clearInterval(yoklama.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!durum || !durum.mumkun || durum.kuruldu || gizli) return null;
 

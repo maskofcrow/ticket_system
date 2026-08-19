@@ -10,6 +10,7 @@ import {
 } from '../../../shared/sozlesme.js';
 import { api, ApiHatasi } from '../lib/api';
 import { screenshotFilename, uploadFile } from '../lib/upload';
+import { envanterBildirSimdi } from '../lib/envanter';
 import { Button, Card, ErrorBanner, Field, Input, InfoBanner, Select, Textarea } from '../components/ui';
 
 interface PendingAttachment {
@@ -76,6 +77,8 @@ export function NewTicketScreen({
     },
     onSuccess: (talep) => {
       void qc.invalidateQueries({ queryKey: ['talepler'] });
+      // Ticket açıldı → meshNodeId'yi taze gönder ki teknisyene "Uzak bağlan" hemen gelsin.
+      void envanterBildirSimdi();
       onCreated(talep);
     },
   });
