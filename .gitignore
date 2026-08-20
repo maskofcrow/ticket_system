@@ -2,6 +2,12 @@ node_modules/
 dist/
 out/
 build/
+# electron-builder kaynak klasörleri (simge/entitlements) yukarıdaki genel "build/"
+# kuralına takılmasın — bunlar repoda durmalı ki CI doğru simgeyle paketlesin.
+!apps/desktop/build/
+!apps/desktop/build/**
+!apps/crmadmin/build/
+!apps/crmadmin/build/**
 release/
 .env
 .env.local
